@@ -11,7 +11,9 @@ import hudson.model.Descriptor;
 import hudson.security.Permission;
 import hudson.tasks.Builder;
 import hudson.tasks.BuildStepDescriptor;
+import hudson.util.ComboBoxModel;
 import hudson.util.ListBoxModel;
+import hudson.util.ListBoxModel.Option;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,16 +26,22 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.ProcessBuilder.Redirect;
 import java.nio.charset.Charset;
+import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Arrays;
+import static java.util.Arrays.asList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import jenkins.plugins.ui_samples.UISample;
 import jenkins.plugins.ui_samples.UISampleDescriptor;
 import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.bind.JavaScriptMethod;
 
 /**
  * Sample {@link Builder}.
@@ -53,10 +61,10 @@ import org.kohsuke.stapler.StaplerResponse;
  * @author Kohsuke Kawaguchi
  */
 @Extension
-public class RPM_Manager extends UISample implements Action {
+public class RPM_Manager implements Action, Describable<RPM_Manager> {
 
     private AbstractProject<?, ?> project;
-    private String rpmManagersScriptPath;
+    private static String rpmManagersScriptPath;
     
     public RPM_Manager() 
     {
@@ -66,7 +74,7 @@ public class RPM_Manager extends UISample implements Action {
     {
     	this.project = project;
         String username = System.getProperty("user.name");
-        rpmManagersScriptPath = "/home/" + username + "/BuildSystem/cc-views/" + username + "_" + project.getName()
+        RPM_Manager.rpmManagersScriptPath = "/home/" + username + "/BuildSystem/cc-views/" + username + "_" + project.getName()
                 + "_int/vobs/linux/CI_Build_Scripts/src/RPM_Manager/RPM_Manager.sh";
     }
     
@@ -114,67 +122,127 @@ public class RPM_Manager extends UISample implements Action {
         return false;
     }
     
-    public void doRemoveRPM(StaplerRequest req, StaplerResponse rsp) throws IOException    
+    /**
+     * This function purpose is to route the user's input from the index.jelly(client side) file
+     * Note: parameters which start with _.<parameter_name> are defined in the field attribute inside tags in the jelly file
+     * @param req
+     * @param rsp
+     * @throws IOException
+     */
+    public void doSubmit(StaplerRequest req, StaplerResponse rsp) throws IOException    
     {
-        String selectedRPM = req.getParameter("selectedRPM");
-        try {
-            executeRPMManagerCommand(Arrays.asList(new String[]{"remove", "rpm", selectedRPM}));
-        } catch (RPMManagerScriptException ex) {
-            Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
+        String rpmRemove = req.getParameter("rpm-remove");
+        String rpmAdd = req.getParameter("rpm-add");
+        String fileRemove = req.getParameter("file-remove");
+        
+        if (rpmRemove != null)
+        {
+            String rpmRemoveName = req.getParameter("_.rpm");
+            System.out.println("rpmRemoveName=" + rpmRemoveName);
+//            removeRPM(rpmRemoveName);
+        }
+        else if(rpmAdd != null)
+        {
+            String rpmAddName = req.getParameter("rpm-add-name");
+            System.out.println("rpmAddName=" + rpmAddName);
+//            adRPM(rpmAddName);
+            
+        }
+        else if(fileRemove != null)
+        {
+            String fileRemoveName = req.getParameter("file-remove-name");
+            System.out.println("fileRemoveName=" + fileRemoveName);
+//            removeFile(rpmRemoveName);
         }
         
-        //Find a better way to redirect the response so it won't be hard coded.
+        Iterator keySetIt = req.getParameterMap().keySet().iterator();
+        Object key;
+        while (keySetIt.hasNext())
+        {
+            key = keySetIt.next();
+            System.out.println("key: " + key.toString() + ", value: " + req.getParameter(key.toString()));
+        }
+//        
+        
+        
+        
+        
+        
+//        String selectedRPM = req.getParameter("selectedRPM");
+//        try {
+//            executeRPMManagerCommand(Arrays.asList(new String[]{"remove", "rpm", selectedRPM}));
+//        } catch (RPMManagerScriptException ex) {
+//            Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+//        
+//        //Find a better way to redirect the response so it won't be hard coded.
         rsp.sendRedirect2(req.getRootPath() + "/job/" + project.getName() + "/RPM_Manager");
     }
     
-    public void doAddRPM(StaplerRequest req, StaplerResponse rsp) throws IOException   
-    {
-        String rpmName = req.getParameter("rpm-name");
-        try {
-            executeRPMManagerCommand(Arrays.asList(new String[]{"add", "rpm", rpmName}));
-        } catch (RPMManagerScriptException ex) {
-            Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
-        //Find a better way to redirect the response so it won't be hard coded.
-        rsp.sendRedirect2(req.getRootPath() + "/job/" + project.getName() + "/RPM_Manager");
-    }
+//    public void doRemoveRPM(StaplerRequest req, StaplerResponse rsp) throws IOException    
+//    {
+//        String selectedRPM = req.getParameter("selectedRPM");
+//        try {
+//            executeRPMManagerCommand(Arrays.asList(new String[]{"remove", "rpm", selectedRPM}));
+//        } catch (RPMManagerScriptException ex) {
+//            Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+//        
+//        //Find a better way to redirect the response so it won't be hard coded.
+//        rsp.sendRedirect2(req.getRootPath() + "/job/" + project.getName() + "/RPM_Manager");
+//    }
+//    
+//    public void doAddRPM(StaplerRequest req, StaplerResponse rsp) throws IOException   
+//    {
+//        String rpmName = req.getParameter("rpm-name");
+//        try {
+//            executeRPMManagerCommand(Arrays.asList(new String[]{"add", "rpm", rpmName}));
+//        } catch (RPMManagerScriptException ex) {
+//            Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+//        
+//        //Find a better way to redirect the response so it won't be hard coded.
+//        rsp.sendRedirect2(req.getRootPath() + "/job/" + project.getName() + "/RPM_Manager");
+//    }
     
-    public String getRpm()
-    {
+//    public String getRpm()
+//    {
 //        ListBoxModel m = new ListBoxModel();
-//        ArrayList<String> filesArr = null;
+//        List<String> filesArr = null;
 //        try {
 //            filesArr = executeRPMManagerCommand(Arrays.asList(new String[]{"show", "all"}));
 //        } catch (RPMManagerScriptException ex) {
 //            Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
 //        }
-//        for (String s : filesArr)
+//        for (String s : asList("A", "B", "C"))
 //        {
-//            m.add(s);
+//            m.add(s, s);
 //        }
+//        System.out.println(m.toString());
 //        return m;
-        return "3";
-    }
-
-//    @Override
-//    public DescriptorImpl getDescriptor() {
-//        System.out.println("In getDescriptor()");
-//        return (DescriptorImpl) Jenkins.getInstance().getDescriptorOrDie(getClass());
 //    }
 
     @Override
+    public DescriptorImpl getDescriptor() {
+        System.out.println("In getDescriptor()");
+        return (DescriptorImpl) Jenkins.getInstance().getDescriptorOrDie(getClass());
+    }
+
     public String getDescription() {
         return "This plugin gives management over Ceragon's RPM mechanism";
     }
+
+    private void removeRPM(String rpmRemoveName) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
     
     @Extension
-    public static final class DescriptorImpl extends UISampleDescriptor
+    public static final class DescriptorImpl extends RPM_ManagerDescriptor
     {
+        private static ArrayList<FileEntry> fileEntriesArr = new ArrayList<FileEntry>();
         
         public ListBoxModel doFillRpmItems()
         {
-            System.out.println("doFillRpmItems");
             ListBoxModel m = new ListBoxModel();
             ArrayList<String> filesArr = null;
             try {
@@ -192,25 +260,48 @@ public class RPM_Manager extends UISample implements Action {
     
         public ListBoxModel doFillFileItems(@QueryParameter String rpm)
         {
-            System.out.println("doFillFileItems");
+            System.out.println("rpm:" + rpm);
             ListBoxModel m = new ListBoxModel();
             ArrayList<String> filesArr = null;
+            DescriptorImpl.fileEntriesArr = new ArrayList<FileEntry>();
             try {
                 filesArr = executeRPMManagerCommand(Arrays.asList(new String[]{"show", "files", rpm}));
+                for (String entry : filesArr)
+                {
+                    System.out.println("entry: " + entry);
+                    DescriptorImpl.fileEntriesArr.add(new FileEntry(entry));
+                }
             } catch (RPMManagerScriptException ex) {
                 Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
             }
-            for (String s : filesArr)
+            for (FileEntry file : DescriptorImpl.fileEntriesArr)
             {
-                m.add(s);
+                m.add(file.getDest());
             }
             return m;
         }
+        
+        @JavaScriptMethod
+        public String getPermissions(String file)
+        {
+            System.out.println("file:" + file);
+            ComboBoxModel m = new ComboBoxModel();
+            int entryIndex = getFileIndexByDest(file);
+            System.out.println("Found at: " + entryIndex + ", permissions: " + DescriptorImpl.fileEntriesArr.get(entryIndex).getPermissions());
+            return DescriptorImpl.fileEntriesArr.get(entryIndex).getPermissions();
+        }
 
-        @Override
-        public String getDisplayName() {
-            System.out.println("In getDisplayName()");
-            return clazz.getSimpleName();
+        private int getFileIndexByDest(String file) {
+            int i = 0;
+            for (FileEntry entry :  fileEntriesArr)
+            {
+                if (entry.getDest().equals(file) == true)
+                {
+                    return i;
+                }
+                i++;
+            }
+            return -1;
         }
     }
     
@@ -226,24 +317,20 @@ public class RPM_Manager extends UISample implements Action {
         
         // Initializing the output file
         File scriptOutputFile = new File("/var/log/jenkins/RPM_Manager.out");
-        if (scriptOutputFile.exists() == true)
-        {
-            scriptOutputFile.delete();
-        }
         
         // Initializing the RPM_Manager.sh command in an array that will be passed to ProcessBuilder
         ArrayList<String> rpmManagerCMD = new ArrayList<String>(options);
-        rpmManagerCMD.add(0, "/home/builder-testing/BuildSystem/cc-views/builder-testing_Genesis-7.7"
-                + "_int/vobs/linux/CI_Build_Scripts/src/RPM_Manager/RPM_Manager.sh");
+        rpmManagerCMD.add(0, RPM_Manager.rpmManagersScriptPath);
         
         // Initializing Proccess builder, redirecting the output to the script output file
         ProcessBuilder pb = new ProcessBuilder().inheritIO();
         pb.redirectErrorStream(true);
-        pb.redirectOutput(ProcessBuilder.Redirect.appendTo(scriptOutputFile));
+        pb.redirectOutput(Redirect.to(scriptOutputFile));
         
         try {        
             String line;
             
+            System.out.println("RPM manager command: " + Arrays.toString(rpmManagerCMD.toArray()));
             // Executing the script command
             pb.command(rpmManagerCMD).start().waitFor();
             
@@ -258,6 +345,7 @@ public class RPM_Manager extends UISample implements Action {
             Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
         }
         
+        outputArr.remove(0);
         String returnMessage = outputArr.remove(outputArr.size() - 1);
         if (returnMessage.equals("[OK]"))
         {

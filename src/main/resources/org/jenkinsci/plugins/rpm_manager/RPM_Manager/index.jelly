@@ -1,5 +1,15 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project">
+<j:set var="instance" value="${it}" />
+<j:set var="descriptor" value="${it.descriptor}" />
+<script>
+    function getPermissions(element){
+        alert(element.value);
+        instance.getPermissions(document.getElementByName('rpm')[0].value, function(t) {
+            document.getElementByName('permissions')[0].value = t.responseObject();
+        }
+    }
+</script>
 <l:layout title="RPM Manager" secured="true">
 <l:header/>
     <l:side-panel>
@@ -9,65 +19,62 @@
         </l:tasks>
     </l:side-panel>
     <l:main-panel>
-        <H1>${it.getJobName()} RPM Manager1</H1>
-        <form action="removeRPM" method="post">
+        <H1>${it.getJobName()} RPM Manager</H1>
+        <form action="submit" method="post">
             <table>
                 <tr>
                     <f:entry title="RPMs list:" field="rpm">
-                        <f:select name="rpm"/>
-<!--                        <select name="selectedRPM">
-                            <j:forEach var="rpm" items="${it.getRPMs()}" varStatus="loop">
-                                <option value="${rpm.toString()}">
-                                    ${rpm.toString()}
-                                </option>
-                            </j:forEach>
-                        </select>-->
+                        <f:select />
                     </f:entry>
                 </tr>
                 <tr>
                     <f:entry title="" >
-                        <f:submit value="Remove"/>
+                        <f:submit name="rpm-remove" value="Remove"/>
                     </f:entry>
                 </tr>
             </table>
-        </form>
-        <form action="addRPM" method="post">
             <table>
-                <f:optionalBlock name="add-rpm" value="Add RPM" title="Add RPM">
+                <f:optionalBlock name="rpm-add-block" value="Add RPM" title="Add RPM">
                     <tr>
                         <f:entry title="RPM name:">
-                            <f:textbox name="rpm-name" value=""/>
+                            <f:textbox name="rpm-add-name" value=""/>
                         </f:entry>
                     </tr>
                     <tr>
                         <f:entry title="" >
-                            <f:submit value="Save"/>
+                            <f:submit name="rpm-add" value="Add"/>
                         </f:entry>
                     </tr>
                 </f:optionalBlock>
             </table>
-        </form>
-        <form action="removeFile" method="post">
             <table>
                 <tr>
                     <f:entry title="Files" field="file">
-                        <f:select/>
+                        <f:select onchange="getPermissions(this)" />
                     </f:entry>
-<!--                    <f:entry title="Files list:">
-                        <select name="selectedFile">
-                            <j:forEach var="file" items="${it.getFiles()}" varStatus="loop">
-                                <option value="${file.toString()}">
-                                    ${file.toString()}
-                                </option>
-                            </j:forEach>
-                        </select>
-                    </f:entry>-->
+                    <f:entry title="Permissions" field="permissions">
+                        <f:textbox filldependson="rpm" fillurl="/job/Genesis-7.7/descriptorByName/org.jenkinsci.plugins.rpm_manager.RPM_Manager/fillFileItems" />
+                    </f:entry>
                 </tr>
                 <tr>
                     <f:entry title="" >
-                        <f:submit value="Remove"/>
+                        <f:submit name="file-remove" value="Remove"/>
                     </f:entry>
                 </tr>
+            </table>
+            <table>
+                <f:optionalBlock name="file-add-block" value="Add file" title="Add file">
+                    <tr>
+                        <f:entry title="file:">
+                            <f:textbox name="file-add-name" value=""/>
+                        </f:entry>
+                    </tr>
+                    <tr>
+                        <f:entry title="" >
+                            <f:submit name="file-add" value="Add"/>
+                        </f:entry>
+                    </tr>
+                </f:optionalBlock>
             </table>
         </form>
     </l:main-panel>
