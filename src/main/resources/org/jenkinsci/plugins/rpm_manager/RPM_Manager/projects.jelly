@@ -1,0 +1,101 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project">
+<j:set var="instance" value="${it}" />
+<j:set var="descriptor" value="${it.descriptor}" />
+<st:bind var="instance" value="${it}" />
+<st:bind var="descriptor" value="${it.descriptor}" />
+<script>
+<!--    descriptor.doSetCurrentProject("asdasd", function(t) {
+        alert("after doSetCurrentProject" + instnace.getJobName());
+        });-->
+
+    // Get prjoect related parts (project name, project path and product path)
+    function getProjectName(){
+        document.getElementsByName('project-name-add')[0].value = document.getElementsByName('_.project')[0].value;
+    }
+    
+    function getProjectPath(){
+        descriptor.doGetProjectPath(document.getElementsByName('_.project')[0].value, function(t) {
+            document.getElementsByName('_.project-path')[0].value = t.responseObject();
+            document.getElementsByName('project-path-add')[0].value = t.responseObject();
+        });
+    }
+    
+    function getProductPath(){
+        descriptor.doGetProductPath(document.getElementsByName('_.project')[0].value, function(t) {
+            document.getElementsByName('_.product-path')[0].value = t.responseObject();
+            document.getElementsByName('product-path-add')[0].value = t.responseObject();
+        });
+    }
+    
+    function getContainingRPM(){
+        descriptor.doGetContainingRPM(document.getElementsByName('_.project')[0].value, function(t) {
+            document.getElementsByName('_.containing-rpm')[0].value = t.responseObject();
+        });
+    }
+</script>
+<l:layout title="Project Manager" secured="true">
+<l:header/>
+    <l:side-panel>
+        <l:tasks>
+            <l:task icon="images/24x24/up.gif" href="${rootURL}/" title="${%Back to Jenkins}"/>
+            <l:task icon="images/24x24/up.gif" href="${rootURL}/job/${it.getJobName()}" title="${%Back to }${it.getJobName()}"/>
+            <l:task icon="plugin/RPM_Manager/rpm-icon.png" href="index" title="RPM Manager"/>
+            <l:task icon="plugin/RPM_Manager/projects-icon.png" href="projects" title="Projects Manager"/>
+        </l:tasks>
+    </l:side-panel>
+    <l:main-panel>
+        <H1>${it.getJobName()} Compiled Projects</H1>
+        <form action="submit" method="post">
+            <table>
+                <tr>
+                    <f:entry title="Project name:" field="project">
+                        <f:select onchange="getProjectPath(); getProductPath(); getProjectName(); getContainingRPM();" />
+                    </f:entry>
+                    <f:entry title="Project path:" field="project-path">
+                        <f:textbox />
+                    </f:entry>
+                    <f:entry title="Product path:" field="product-path">
+                        <f:textbox />
+                    </f:entry>
+                    <f:entry title="Containing RPM:" field="containing-rpm">
+                        <f:textbox />
+                    </f:entry>
+                </tr>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="project-remove-submit" value="Remove"/>
+                    </f:entry>
+                </tr>
+            </table>
+            <table>
+                <f:optionalBlock name="project-add-block" value="Add project" title="Add new project">
+                    <tr>
+                        <f:entry title="Project name:">
+                            <f:textbox name="project-name-add" value=""/>
+                        </f:entry>
+                        <f:entry title="Project path:">
+                            <f:textbox name="project-path-add" value=""/>
+                        </f:entry>
+                        <f:entry title="Product path:">
+                            <f:textbox name="product-path-add" value=""/>
+                        </f:entry>
+                        <f:radioBlock name="artifact-type" value="static-library" title="Static library" checked="true">
+                        </f:radioBlock>
+                        <f:radioBlock name="artifact-type" value="shared-library-exe" title="Shared object/Executable">
+                            <f:entry title="Containing RPM:" field="projectContainingRpm">
+                                <f:select />
+                            </f:entry>
+                        </f:radioBlock>
+                    </tr>
+                    <tr>
+                        <f:entry title="" >
+                            <f:submit name="project-add-submit" value="Add"/>
+                        </f:entry>
+                    </tr>
+                </f:optionalBlock>
+            </table>
+        </form>
+    </l:main-panel>
+</l:layout>
+</j:jelly>

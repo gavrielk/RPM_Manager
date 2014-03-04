@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 
-package org.jenkinsci.plugins.rpm_manager;
+package org.jenkinsci.plugins.rpm_manager.resources;
 
 /**
  * Description: 
@@ -16,41 +16,25 @@ package org.jenkinsci.plugins.rpm_manager;
  * 
  * @author gavrielk
  */
-public class FileEntry {
+public class LinkResource extends IResource {
     
-    private String source = "Missing";
-    private String dest = "Missing";
-    private String permissions = "Missing";
+    private String source = "";
     
-    public FileEntry(String entry)
+    public LinkResource(String entry)
     {
         String[] parts = entry.split("\\s+");
         if (parts[0] != null)
         {
-            this.permissions = parts[0];
+            this.source = parts[0];
         }
         if (parts[1] != null)
         {
-            this.source = parts[1];
-        }
-        if (parts[2] != null)
-        {
-            this.dest = parts[2];
+            this.resource = parts[1];
         }
     }
     
     public String getSource()
     {
         return this.source;
-    }
-    
-    public String getDest()
-    {
-        return this.dest;
-    }
-    
-    public String getPermissions()
-    {
-        return this.permissions;
     }
 }

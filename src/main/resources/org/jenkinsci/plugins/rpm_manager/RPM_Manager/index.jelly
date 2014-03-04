@@ -2,12 +2,51 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project">
 <j:set var="instance" value="${it}" />
 <j:set var="descriptor" value="${it.descriptor}" />
+<st:bind var="instance" value="${it}" />
+<st:bind var="descriptor" value="${it.descriptor}" />
 <script>
-    function getPermissions(element){
-        alert(element.value);
-        instance.getPermissions(document.getElementByName('rpm')[0].value, function(t) {
-            document.getElementByName('permissions')[0].value = t.responseObject();
-        }
+    
+    // Get files related parts (source file path, dest file path and file permissions)
+    function getDestFile(){
+        document.getElementsByName('file-add')[0].value = document.getElementsByName('_.file')[0].value;
+    }
+    
+    function getFilePermissions(){
+        descriptor.doGetFilePermissions(document.getElementsByName('_.file')[0].value, function(t) {
+            document.getElementsByName('_.file-permissions')[0].value = t.responseObject();
+            document.getElementsByName('file-permissions-add')[0].value = t.responseObject();
+        });
+    }
+    
+    function getSourceFile(){
+        descriptor.doGetSourceFile(document.getElementsByName('_.file')[0].value, function(t) {
+            document.getElementsByName('_.source-file')[0].value = t.responseObject();
+            document.getElementsByName('source-file-add')[0].value = t.responseObject();
+        });
+    }
+    
+    // Get links related parts (source file and link)
+    function getDestLink(){
+        document.getElementsByName('dest-link-add')[0].value = document.getElementsByName('_.link')[0].value;
+    }
+    
+    function getSourceLink(){
+        descriptor.doGetSourceLink(document.getElementsByName('_.link')[0].value, function(t) {
+            document.getElementsByName('_.source-link')[0].value = t.responseObject();
+            document.getElementsByName('source-link-add')[0].value = t.responseObject();
+        });
+    }
+    
+    // Get dir related parts (dir path and dir permissions)
+    function getDir(){
+        document.getElementsByName('dir-add')[0].value = document.getElementsByName('_.dir')[0].value;
+    }
+    
+    function getDirPermissions(){
+        descriptor.doGetDirPermissions(document.getElementsByName('_.dir')[0].value, function(t) {
+            document.getElementsByName('_.dir-permissions')[0].value = t.responseObject();
+            document.getElementsByName('dir-permissions-add')[0].value = t.responseObject();
+        });
     }
 </script>
 <l:layout title="RPM Manager" secured="true">
@@ -16,10 +55,12 @@
         <l:tasks>
             <l:task icon="images/24x24/up.gif" href="${rootURL}/" title="${%Back to Jenkins}"/>
             <l:task icon="images/24x24/up.gif" href="${rootURL}/job/${it.getJobName()}" title="${%Back to }${it.getJobName()}"/>
+            <l:task icon="plugin/RPM_Manager/rpm-icon.png" href="index" title="RPM Manager"/>
+            <l:task icon="plugin/RPM_Manager/projects-icon.png" href="projects" title="Projects Manager"/>
         </l:tasks>
     </l:side-panel>
     <l:main-panel>
-        <H1>${it.getJobName()} RPM Manager</H1>
+        <H1><div id="project-name">${it.getJobName()}</div> RPM Manager</H1>
         <form action="submit" method="post">
             <table>
                 <tr>
@@ -29,7 +70,7 @@
                 </tr>
                 <tr>
                     <f:entry title="" >
-                        <f:submit name="rpm-remove" value="Remove"/>
+                        <f:submit name="rpm-remove-submit" value="Remove"/>
                     </f:entry>
                 </tr>
             </table>
@@ -42,23 +83,64 @@
                     </tr>
                     <tr>
                         <f:entry title="" >
-                            <f:submit name="rpm-add" value="Add"/>
+                            <f:submit name="rpm-add-submit" value="Add"/>
                         </f:entry>
                     </tr>
                 </f:optionalBlock>
             </table>
             <table>
+                <f:entry title="">
+                    <div style="text-decoration: underline">Dirs in RPM:</div>
+                </f:entry>
                 <tr>
-                    <f:entry title="Files" field="file">
-                        <f:select onchange="getPermissions(this)" />
+                    <f:entry title="Dirs" field="dir">
+                        <f:select onchange="getDirPermissions(); getDir();" />
                     </f:entry>
-                    <f:entry title="Permissions" field="permissions">
-                        <f:textbox filldependson="rpm" fillurl="/job/Genesis-7.7/descriptorByName/org.jenkinsci.plugins.rpm_manager.RPM_Manager/fillFileItems" />
+                    <f:entry title="Permissions" field="dir-permissions">
+                        <f:textbox />
                     </f:entry>
                 </tr>
                 <tr>
                     <f:entry title="" >
-                        <f:submit name="file-remove" value="Remove"/>
+                        <f:submit name="dir-remove-submit" value="Remove"/>
+                    </f:entry>
+                </tr>
+            </table>
+            <table>
+                <f:optionalBlock name="dir-add-block" value="Add dir" title="Add dir">
+                    <tr>
+                        <f:entry title="Dir:">
+                            <f:textbox name="dir-add" value=""/>
+                        </f:entry>
+                        <f:entry title="Permissions:">
+                            <f:textbox name="dir-permissions-add" value=""/>
+                        </f:entry>
+                    </tr>
+                    <tr>
+                        <f:entry title="" >
+                            <f:submit name="dir-add-submit" value="Add"/>
+                        </f:entry>
+                    </tr>
+                </f:optionalBlock>
+            </table>
+            <table>
+                <f:entry title="">
+                    <div style="text-decoration: underline">Files in RPM:</div>
+                </f:entry>
+                <tr>
+                    <f:entry title="Files" field="file">
+                        <f:select onchange="getFilePermissions(); getSourceFile(); getDestFile();" />
+                    </f:entry>
+                    <f:entry title="Permissions" field="file-permissions">
+                        <f:textbox />
+                    </f:entry>
+                    <f:entry title="Source" field="source-file">
+                        <f:textbox />
+                    </f:entry>
+                </tr>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="file-remove-submit" value="Remove"/>
                     </f:entry>
                 </tr>
             </table>
@@ -66,12 +148,53 @@
                 <f:optionalBlock name="file-add-block" value="Add file" title="Add file">
                     <tr>
                         <f:entry title="file:">
-                            <f:textbox name="file-add-name" value=""/>
+                            <f:textbox name="file-add" value=""/>
+                        </f:entry>
+                        <f:entry title="permissions:">
+                            <f:textbox name="file-permissions-add" value=""/>
+                        </f:entry>
+                        <f:entry title="source:">
+                            <f:textbox name="source-file-add" value=""/>
                         </f:entry>
                     </tr>
                     <tr>
                         <f:entry title="" >
-                            <f:submit name="file-add" value="Add"/>
+                            <f:submit name="file-add-submit" value="Add"/>
+                        </f:entry>
+                    </tr>
+                </f:optionalBlock>
+            </table>
+            <table>
+                <f:entry title="">
+                    <div style="text-decoration: underline">Links in RPM:</div>
+                </f:entry>
+                <tr>
+                    <f:entry title="Links" field="link">
+                        <f:select onchange="getSourceLink(); getDestLink();" />
+                    </f:entry>
+                    <f:entry title="Source" field="source-link">
+                        <f:textbox />
+                    </f:entry>
+                </tr>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="link-remove-submit" value="Remove"/>
+                    </f:entry>
+                </tr>
+            </table>
+            <table>
+                <f:optionalBlock name="link-add-block" value="Add link" title="Add link">
+                    <tr>
+                        <f:entry title="Source:">
+                            <f:textbox name="source-link-add" value=""/>
+                        </f:entry>
+                        <f:entry title="Destination:">
+                            <f:textbox name="dest-link-add" value=""/>
+                        </f:entry>
+                    </tr>
+                    <tr>
+                        <f:entry title="" >
+                            <f:submit name="link-add-submit" value="Add"/>
                         </f:entry>
                     </tr>
                 </f:optionalBlock>
@@ -79,4 +202,8 @@
         </form>
     </l:main-panel>
 </l:layout>
+<!--<script>
+    descriptor.doSetCurrentProject(instnace.getJobName(), function(t) {
+        });
+</script>-->
 </j:jelly>
