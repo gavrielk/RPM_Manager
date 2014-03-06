@@ -1,0 +1,130 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project">
+<j:set var="instance" value="${it}" />
+<j:set var="descriptor" value="${it.descriptor}" />
+<st:bind var="instance" value="${it}" />
+<st:bind var="descriptor" value="${it.descriptor}" />
+<script>
+    
+    // NOTE: you cannot use ampercent inside jelly file thus the if must be seperated
+    function initRPMInfo(){
+        var rpmName = document.getElementsByName('_.versionRpm')[0].value;
+        if (rpmName != null){
+            if (rpmName != ""){
+                descriptor.doGetRPMVersion(rpmName, function(t) {
+                    document.getElementsByName('rpm-version')[0].value = t.responseObject();
+                });
+                descriptor.doGetRPMRelease(rpmName, function(t) {
+                    document.getElementsByName('rpm-release')[0].value = t.responseObject();
+                });
+                descriptor.doGetRPMDep(rpmName, function(t) {
+                    document.getElementsByName('rpm-dep')[0].value = t.responseObject();
+                });
+                descriptor.doGetRPMSummary(rpmName, function(t) {
+                    document.getElementsByName('rpm-summary')[0].value = t.responseObject();
+                });
+                descriptor.doGetRPMDescription(rpmName, function(t) {
+                    document.getElementsByName('rpm-description')[0].value = t.responseObject();
+                });
+            }
+        }
+    }
+    
+    function getVarValue(){
+        var rpmName = document.getElementsByName('_.versionRpm')[0].value;
+        var variable = document.getElementsByName('_.variable')[0].value;
+        if (rpmName != null){
+            if (rpmName != ""){
+                descriptor.doGetRPMVaribleValue(rpmName, variable, function(t) {
+                    document.getElementsByName('var-value')[0].value = t.responseObject();
+                });
+            }
+        }
+    }
+</script>
+<l:layout title="Version Manager" secured="true">
+<l:header/>
+    <l:side-panel>
+        <l:tasks>
+            <l:task icon="images/24x24/up.gif" href="${rootURL}/" title="${%Back to Jenkins}"/>
+            <l:task icon="images/24x24/up.gif" href="${rootURL}/job/${it.getJobName()}" title="${%Back to }${it.getJobName()}"/>
+            <l:task icon="plugin/RPM_Manager/rpm-icon.png" href="index" title="RPM Manager"/>
+            <l:task icon="plugin/RPM_Manager/versions-icon.png" href="versions" title="Version Manager"/>
+            <l:task icon="plugin/RPM_Manager/projects-icon.png" href="projects" title="Projects Manager"/>
+        </l:tasks>
+    </l:side-panel>
+    <l:main-panel>
+        <H1>${it.getJobName()} Version Manager</H1>
+        <form action="submit" method="post">
+            <table>
+                <tr>
+                    <f:entry title="RPMs list:" field="versionRpm">
+                        <f:select onchange="initRPMInfo();"/>
+                    </f:entry>
+                </tr>
+                <tr>
+                    <f:entry title="Version:">
+                        <f:textbox name="rpm-version" value=""/>
+                    </f:entry>
+                </tr>
+                <tr>
+                    <f:entry title="Release:">
+                        <f:textbox name="rpm-release" value=""/>
+                    </f:entry>
+                </tr>
+                <tr>
+                    <f:entry title="Dependencies:">
+                        <f:textbox name="rpm-dep" value=""/>
+                    </f:entry>
+                </tr>
+                <tr>
+                    <f:entry title="Summary:">
+                        <f:textbox name="rpm-summary" value=""/>
+                    </f:entry>
+                </tr>
+                <tr>
+                    <f:entry title="Description:">
+                        <f:textarea name="rpm-description" value=""/>
+                    </f:entry>
+                </tr>
+                <tr>
+                    <f:entry title="Other versions:" field="variable">
+                        <f:select onchange="getVarValue();"/>
+                    </f:entry>
+                </tr>
+                <tr>
+                    <f:entry title="Value:">
+                        <f:textbox name="var-value" value=""/>
+                    </f:entry>
+                </tr>
+                <f:optionalBlock name="var-add-block" value="Add version variable" title="Add version variable">
+                    <tr>
+                        <f:entry title="Version variable:">
+                            <f:textbox name="var-key-add" value=""/>
+                        </f:entry>
+                        <f:entry title="Version number:">
+                            <f:textbox name="var-value-add" value=""/>
+                        </f:entry>
+                    </tr>
+                </f:optionalBlock>
+<!--                <tr>onchange="getVarValue();"
+                    <j:forEach var="varibable" items="${descriptor.doGetRPMDep(rpmName}" varStatus="loop">
+                        <f:entry title="Existing schedules:">
+                            <select name="existingSchedules">
+                                    <option value="${schedule.toString()}">
+                                        ${schedule.toString()}
+                                    </option>
+                            </select>
+                        </f:entry>
+                    </j:forEach>
+                </tr>-->
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="version-save-submit" value="Save"/>
+                    </f:entry>
+                </tr>
+            </table>
+        </form>
+    </l:main-panel>
+</l:layout>
+</j:jelly>

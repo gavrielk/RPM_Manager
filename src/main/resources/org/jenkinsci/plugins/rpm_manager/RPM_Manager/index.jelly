@@ -56,11 +56,12 @@
             <l:task icon="images/24x24/up.gif" href="${rootURL}/" title="${%Back to Jenkins}"/>
             <l:task icon="images/24x24/up.gif" href="${rootURL}/job/${it.getJobName()}" title="${%Back to }${it.getJobName()}"/>
             <l:task icon="plugin/RPM_Manager/rpm-icon.png" href="index" title="RPM Manager"/>
+            <l:task icon="plugin/RPM_Manager/versions-icon.png" href="versions" title="Version Manager"/>
             <l:task icon="plugin/RPM_Manager/projects-icon.png" href="projects" title="Projects Manager"/>
         </l:tasks>
     </l:side-panel>
     <l:main-panel>
-        <H1><div id="project-name">${it.getJobName()}</div> RPM Manager</H1>
+        <H1>${it.getJobName()} RPM Manager</H1>
         <form action="submit" method="post">
             <table>
                 <tr>
@@ -202,8 +203,4 @@
         </form>
     </l:main-panel>
 </l:layout>
-<!--<script>
-    descriptor.doSetCurrentProject(instnace.getJobName(), function(t) {
-        });
-</script>-->
 </j:jelly>

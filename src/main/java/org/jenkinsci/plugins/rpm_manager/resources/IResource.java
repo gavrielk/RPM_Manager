@@ -12,7 +12,7 @@ package org.jenkinsci.plugins.rpm_manager.resources;
  */
 public abstract class IResource {
     
-    protected String resource = "Missing";
+    protected String resource = "";
     
     protected IResource()
     {
