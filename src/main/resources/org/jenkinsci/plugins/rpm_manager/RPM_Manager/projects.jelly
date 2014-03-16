@@ -5,10 +5,6 @@
 <st:bind var="instance" value="${it}" />
 <st:bind var="descriptor" value="${it.descriptor}" />
 <script>
-<!--    descriptor.doSetCurrentProject("asdasd", function(t) {
-        alert("after doSetCurrentProject" + instnace.getJobName());
-        });-->
-
     // Get prjoect related parts (project name, project path and product path)
     function getProjectName(){
         document.getElementsByName('project-name-add')[0].value = document.getElementsByName('_.project')[0].value;
@@ -81,13 +77,15 @@
                         <f:entry title="Product path:">
                             <f:textbox name="product-path-add" value=""/>
                         </f:entry>
-                        <f:radioBlock name="artifact-type" value="static-library" title="Static library" checked="true">
-                        </f:radioBlock>
-                        <f:radioBlock name="artifact-type" value="shared-library-exe" title="Shared object/Executable">
-                            <f:entry title="Containing RPM:" field="projectContainingRpm">
-                                <f:select />
-                            </f:entry>
-                        </f:radioBlock>
+                        <f:entry>
+                            <f:radioBlock name="artifact-type" value="static-library" title="Static library" checked="true">
+                            </f:radioBlock>
+                            <f:radioBlock name="artifact-type" value="shared-library-exe" title="Shared object/Executable">
+                                <f:entry title="Containing RPM:" field="projectContainingRpm">
+                                    <f:select />
+                                </f:entry>
+                            </f:radioBlock>
+                        </f:entry>
                     </tr>
                     <tr>
                         <f:entry title="" >
@@ -95,6 +93,24 @@
                         </f:entry>
                     </tr>
                 </f:optionalBlock>
+            </table>
+        </form>
+        <form action="validate" method="post">
+            <table>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="validate-submit" value="Validate"/>
+                    </f:entry>
+                </tr>
+            </table>
+        </form>
+        <form action="checkin" method="post">
+            <table>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="Checkin-submit" value="Checkin"/>
+                    </f:entry>
+                </tr>
             </table>
         </form>
     </l:main-panel>

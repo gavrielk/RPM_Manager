@@ -8,13 +8,22 @@ import hudson.model.AbstractBuild;
 import hudson.model.BuildListener;
 import hudson.model.AbstractProject;
 import hudson.model.Action;
+import hudson.model.BooleanParameterValue;
+import hudson.model.Cause;
+import hudson.model.CauseAction;
 import hudson.model.Describable;
+import hudson.model.ParameterDefinition;
+import hudson.model.ParameterValue;
+import hudson.model.ParametersAction;
+import hudson.model.ParametersDefinitionProperty;
 import hudson.security.Permission;
 import hudson.tasks.Builder;
 import hudson.util.ListBoxModel;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -29,7 +38,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.servlet.ServletException;
 import jenkins.model.Jenkins;
+import jenkins.util.TimeDuration;
 import org.jenkinsci.plugins.rpm_manager.resources.DirResource;
 import org.jenkinsci.plugins.rpm_manager.resources.IResource;
 import org.jenkinsci.plugins.rpm_manager.resources.ProjectResource;
@@ -60,6 +71,8 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
 
     private AbstractProject<?, ?> project;
     private static String rpmManagersScriptPath;
+    private static File tempScriptOutputFile = new File("/var/log/jenkins/RPM_Manager.out");
+    private static File logFile = new File("/var/log/jenkins/RPM_Manager.log");
     
     public RPM_Manager() 
     {
@@ -68,7 +81,6 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
     public RPM_Manager(AbstractProject<?, ?> project) 
     {
     	this.project = project;
-//        RPM_Manager.rpmManagersScriptPath = getRPMManagerPath(this.project.getName());
     }
     
     @Override
@@ -116,7 +128,7 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
     }
     
     /**
-     * This function purpose is to route the user's input from the index.jelly(client side) file
+     * This function purpose is to route the user's input from the index.jelly, versions.jelly and index.jelly(client side) file
      * Note: parameters which start with _.<parameter_name> are defined in the field attribute inside tags in the jelly file
      * @param req
      * @param rsp
@@ -294,11 +306,10 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
                 {
                     executeRPMManagerCommand(Arrays.asList(new String[]{"change", "release", versionRpmName, savedRelease}));
                 }
-                // Not supported yet
-//                    if (isBlank(new String[]{savedDep}) == false && savedDep.equals(currentRpm.getDependencies()) == false)
-//                    {
-//                        executeRPMManagerCommand(Arrays.asList(new String[]{"change", "requires", versionRpmName, savedDep}));
-//                    }
+                if (isBlank(new String[]{savedDep}) == false && savedDep.equals(currentRpm.getDependencies()) == false)
+                {
+                    executeRPMManagerCommand(Arrays.asList(new String[]{"change", "requires", versionRpmName, savedDep}));
+                }
                 if (isBlank(new String[]{savedSummary}) == false && savedSummary.equals(currentRpm.getSummary()) == false)
                 {
                     executeRPMManagerCommand(Arrays.asList(new String[]{"change", "summary", versionRpmName, savedSummary}));
@@ -311,21 +322,68 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
                 {
                     executeRPMManagerCommand(Arrays.asList(new String[]{"change", "variable", versionRpmName, savedVarKey, savedVarValue}));
                 }
-                // Not supported yet
-//                if (isBlank(new String[]{newVarAdd}) == false)
-//                {
-//                    String newVarKey = req.getParameter("var-key-add");
-//                    String newVarValue = req.getParameter("var-value-add");
-//                    System.out.println("newVarKey=" + newVarKey);
-//                    System.out.println("newVarValue=" + newVarValue);
-//                    
-//                    executeRPMManagerCommand(Arrays.asList(new String[]{"add", "variable", versionRpmName, newVarKey, newVarValue}));
-//                }
+                if (isBlank(new String[]{newVarAdd}) == false)
+                {
+                    String newVarKey = req.getParameter("var-key-add");
+                    String newVarValue = req.getParameter("var-value-add");
+                    System.out.println("newVarKey=" + newVarKey);
+                    System.out.println("newVarValue=" + newVarValue);
+                    
+                    executeRPMManagerCommand(Arrays.asList(new String[]{"add", "variable", versionRpmName, newVarKey, newVarValue}));
+                }
             }
         }catch(RPMManagerScriptException ex){
             Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
         }
         
+        rsp.sendRedirect2(req.getReferer());
+    }
+    
+    public void doValidate(StaplerRequest req, StaplerResponse rsp) throws IOException  
+    {
+        List<ParameterValue> values = new ArrayList<ParameterValue>();
+        List<ParameterDefinition> definitions = new ArrayList<ParameterDefinition>();
+        
+        ParametersDefinitionProperty property = this.project.getProperty(ParametersDefinitionProperty.class);
+        if (property != null && property.getParameterDefinitions() != null) 
+        {
+            definitions = property.getParameterDefinitions();
+        }
+        for (ParameterDefinition parameterDefinition : definitions) 
+        {
+            ParameterValue parameterValue;
+            String parameterName = parameterDefinition.getName();
+            if (parameterName.equals("Testing") == true || parameterName.equals("Update_view") == true)
+            {
+                parameterValue = new BooleanParameterValue(parameterName, false);
+            }
+            else
+            {
+                parameterValue = parameterDefinition.getDefaultParameterValue();
+            }
+            values.add(parameterValue);
+        }
+                
+        Jenkins.getInstance().getQueue().schedule(project, 0, new ParametersAction(values), new CauseAction(new Cause.UserIdCause()));
+            
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException ex) {
+            Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        // http://10.10.12.164:8080/job/Genesis-1.8/5/console
+        rsp.sendRedirect2(this.project.getLastBuild().getAbsoluteUrl() + "console");
+    }
+    
+    public void doCheckin(StaplerRequest req, StaplerResponse rsp) throws IOException  
+    {
+//        try 
+//        {
+//            RPM_Manager.executeRPMManagerCommand(Arrays.asList(new String[]{"checkin"}));
+//        } catch (RPMManagerScriptException ex) {
+//            Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+//        
         rsp.sendRedirect2(req.getReferer());
     }
     
@@ -431,8 +489,7 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
                 m.add(project.getResource());
             }
             return m;
-        }
-                
+        }                
 
         public ListBoxModel doFillProjectContainingRpmItems()
         {
@@ -563,6 +620,32 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
             int resourceIndex = getResourceIndex(file, DescriptorImpl.fileResourceArr);
             System.out.println("File found at: " + resourceIndex + ", source: " + ((FileResource)DescriptorImpl.fileResourceArr.get(resourceIndex)).getSource());
             return ((FileResource)DescriptorImpl.fileResourceArr.get(resourceIndex)).getSource();
+        }
+        
+        @JavaScriptMethod
+        public ListBoxModel doGetSWProjects(String rpm)
+        {
+            if (isBlank(new String[]{rpm}) == true)
+            {
+                return null;
+            }
+            ListBoxModel m = new ListBoxModel();
+            System.out.println("rpm: " + rpm);
+            try {
+                ProjectContainingRPMEnum containingRPM = ProjectContainingRPMEnum.valueOf(rpm.toUpperCase());
+                ArrayList<String> projectsArr = executeRPMManagerCommand(Arrays.asList(new String[]{"show", "projects", rpm}));
+                for (String entry : projectsArr)
+                {
+                    System.out.println("SW Project entry: " + entry + ", Containing RPM: " + rpm);
+                    m.add(new ProjectResource(entry, containingRPM).getResource());
+                }
+            } catch (RPMManagerScriptException ex) {
+                Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (IllegalArgumentException ex) {
+                System.out.println("[INFO] " + rpm + " doesn't contain project that need to be compiled");
+            }
+            
+            return m;
         }
         
         @JavaScriptMethod
@@ -726,37 +809,48 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         {
             return outputArr;
         }
-        // Initializing the output file
-        File scriptOutputFile = new File("/var/log/jenkins/RPM_Manager.out");
         
         // Initializing the RPM_Manager.sh command in an array that will be passed to ProcessBuilder
         ArrayList<String> rpmManagerCMD = new ArrayList<String>(options);
         rpmManagerCMD.add(0, RPM_Manager.rpmManagersScriptPath);
         
-        // Initializing Proccess builder, redirecting the output to the script output file
-        ProcessBuilder pb = new ProcessBuilder().inheritIO();
-        pb.redirectErrorStream(true);
-        pb.redirectOutput(Redirect.to(scriptOutputFile));
+        // Redirecting the output to the script output file
+        // if we use the show command of RPM_Manager.sh we redirect the output to a temp output file and overwrite it so we can present it to the user later (no log)
+        // if we run add/remove/change commands we don't need to present anything to the user we append the output to a log file (mainly for clearcase issues)
+        Redirect redirect = Redirect.to(RPM_Manager.tempScriptOutputFile);
         
         try {        
             String line;
             
             System.out.println("RPM manager command: " + Arrays.toString(rpmManagerCMD.toArray()));
             // Executing the script command
-            pb.command(rpmManagerCMD).start().waitFor();
+            executeScript(rpmManagerCMD, redirect);
             
             // Reading the output file
-            InputStream fis = new FileInputStream(scriptOutputFile);
+            InputStream fis = new FileInputStream(RPM_Manager.tempScriptOutputFile);
             BufferedReader br = new BufferedReader(new InputStreamReader(fis, Charset.forName("UTF-8")));
-            while ((line = br.readLine()) != null) 
+            if (rpmManagerCMD.get(1).equals("show") == false)
             {
-                outputArr.add(line);
+                BufferedWriter bw = new BufferedWriter(new FileWriter(RPM_Manager.logFile, true));        
+                while ((line = br.readLine()) != null) 
+                {
+                    bw.write(line + "\n");
+                    outputArr.add(line);
+                }
+                bw.close();
+            }
+            else
+            {
+                while ((line = br.readLine()) != null) 
+                {
+                    outputArr.add(line);
+                }
             }
         } catch (IOException | InterruptedException ex) {
             Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
         }
         
-        if (outputArr.get(0).equals("1_main") == true)
+        if (outputArr.size() > 0 && outputArr.get(0).equals("1_main") == true)
         {
                 outputArr.set(0, "");
 //                outputArr.remove(0);
@@ -771,6 +865,15 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         {
             throw new RPMManagerScriptException("Error occured while running " + rpmManagerCMD.toString() + "\nError message: " + returnMessage);
         }
+    }
+    
+    public static void executeScript(ArrayList<String> command, Redirect redirect) throws IOException, InterruptedException
+    {
+        ProcessBuilder pb = new ProcessBuilder().inheritIO();
+        pb.redirectErrorStream(true);
+        
+        pb.redirectOutput(redirect);
+        pb.command(command).start().waitFor();
     }
     
     private static boolean isBlank(String[] variables)

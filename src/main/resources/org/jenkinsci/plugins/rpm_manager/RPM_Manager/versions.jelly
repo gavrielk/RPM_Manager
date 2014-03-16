@@ -41,6 +41,7 @@
             }
         }
     }
+    
 </script>
 <l:layout title="Version Manager" secured="true">
 <l:header/>
@@ -56,7 +57,7 @@
     <l:main-panel>
         <H1>${it.getJobName()} Version Manager</H1>
         <form action="submit" method="post">
-            <table>
+            <table style="border-style:solid;border-width:5px;">
                 <tr>
                     <f:entry title="RPMs list:" field="versionRpm">
                         <f:select onchange="initRPMInfo();"/>
@@ -121,6 +122,24 @@
                 <tr>
                     <f:entry title="" >
                         <f:submit name="version-save-submit" value="Save"/>
+                    </f:entry>
+                </tr>
+            </table>
+        </form>
+        <form action="validate" method="post">
+            <table>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="validate-submit" value="Validate"/>
+                    </f:entry>
+                </tr>
+            </table>
+        </form>
+        <form action="checkin" method="post">
+            <table>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="Checkin-submit" value="Checkin"/>
                     </f:entry>
                 </tr>
             </table>

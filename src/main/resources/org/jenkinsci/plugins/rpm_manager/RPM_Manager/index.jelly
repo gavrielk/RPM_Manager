@@ -48,6 +48,52 @@
             document.getElementsByName('dir-permissions-add')[0].value = t.responseObject();
         });
     }
+    
+    function getSWProjects(){
+        descriptor.doGetSWProjects(document.getElementsByName('_.rpm')[0].value, function(t) {
+            var swProjectTag = document.getElementsByName('sw-project')[0];
+            var projectsArr = t.responseObject().values;
+            var projectsArrLength = projectsArr.length;
+    
+            while(swProjectTag.length>0){               // clear the previous content
+                swProjectTag.options[0] = null;
+            }
+    
+            swProjectTag.add(document.createElement("option"));
+            for (var i = 0; i != projectsArrLength; i++){                   // You cannot use less then sign in the condition due to jelly file syntax
+                var option = document.createElement("option");
+                option.name = projectsArr[i].name;
+                option.value = projectsArr[i].value;
+                option.text = projectsArr[i].value;
+                swProjectTag.add(option);
+            }
+        });
+    }
+    
+    function fillSWProjectSource(){
+        if (document.getElementsByName('sw-project')[0].value != ""){
+            document.getElementsByName('source-file-add')[0].value = "$(AP_" + document.getElementsByName('sw-project')[0].value + "_TGT)";
+        }
+        else{
+            document.getElementsByName('source-file-add')[0].value = "";
+        }
+    }
+
+    function initForms(){
+        document.getElementById('validate-form').submit(function() {
+            alert("click");
+        });
+        document.getElementById('checkin-form').submit(function() {
+            alert("click");
+        });
+    }
+    
+    function getErrorMessage(){
+        descriptor.doGetErrorMessage(document.getElementsByName('_.dir')[0].value, function(t) {
+            document.getElementsByName('_.dir-permissions')[0].value = t.responseObject();
+            document.getElementsByName('dir-permissions-add')[0].value = t.responseObject();
+        });
+    }
 </script>
 <l:layout title="RPM Manager" secured="true">
 <l:header/>
@@ -63,10 +109,10 @@
     <l:main-panel>
         <H1>${it.getJobName()} RPM Manager</H1>
         <form action="submit" method="post">
-            <table>
+            <table style="border-style:solid;border-width:1px;">
                 <tr>
                     <f:entry title="RPMs list:" field="rpm">
-                        <f:select />
+                        <f:select onchange="getSWProjects();" />
                     </f:entry>
                 </tr>
                 <tr>
@@ -74,8 +120,6 @@
                         <f:submit name="rpm-remove-submit" value="Remove"/>
                     </f:entry>
                 </tr>
-            </table>
-            <table>
                 <f:optionalBlock name="rpm-add-block" value="Add RPM" title="Add RPM">
                     <tr>
                         <f:entry title="RPM name:">
@@ -89,7 +133,7 @@
                     </tr>
                 </f:optionalBlock>
             </table>
-            <table>
+            <table style="border-style:solid;border-width:1px;">
                 <f:entry title="">
                     <div style="text-decoration: underline">Dirs in RPM:</div>
                 </f:entry>
@@ -106,8 +150,6 @@
                         <f:submit name="dir-remove-submit" value="Remove"/>
                     </f:entry>
                 </tr>
-            </table>
-            <table>
                 <f:optionalBlock name="dir-add-block" value="Add dir" title="Add dir">
                     <tr>
                         <f:entry title="Dir:">
@@ -124,7 +166,7 @@
                     </tr>
                 </f:optionalBlock>
             </table>
-            <table>
+            <table style="border-style:solid;border-width:1px;">
                 <f:entry title="">
                     <div style="text-decoration: underline">Files in RPM:</div>
                 </f:entry>
@@ -144,8 +186,6 @@
                         <f:submit name="file-remove-submit" value="Remove"/>
                     </f:entry>
                 </tr>
-            </table>
-            <table>
                 <f:optionalBlock name="file-add-block" value="Add file" title="Add file">
                     <tr>
                         <f:entry title="file:">
@@ -157,6 +197,13 @@
                         <f:entry title="source:">
                             <f:textbox name="source-file-add" value=""/>
                         </f:entry>
+                        <f:entry title="">
+                            <f:optionalBlock name="sw-project-checkbox" value="Software project" title="Software project">
+                                <f:entry title="Choose project: ">
+                                    <f:select name="sw-project" onchange="fillSWProjectSource();" />
+                                </f:entry>
+                            </f:optionalBlock>
+                        </f:entry>
                     </tr>
                     <tr>
                         <f:entry title="" >
@@ -165,7 +212,7 @@
                     </tr>
                 </f:optionalBlock>
             </table>
-            <table>
+            <table style="border-style:solid;border-width:1px;">
                 <f:entry title="">
                     <div style="text-decoration: underline">Links in RPM:</div>
                 </f:entry>
@@ -182,8 +229,6 @@
                         <f:submit name="link-remove-submit" value="Remove"/>
                     </f:entry>
                 </tr>
-            </table>
-            <table>
                 <f:optionalBlock name="link-add-block" value="Add link" title="Add link">
                     <tr>
                         <f:entry title="Source:">
@@ -201,6 +246,30 @@
                 </f:optionalBlock>
             </table>
         </form>
+        <form id="validate-form" action="validate" method="post">
+            <table>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="validate-submit" value="Validate"/>
+                    </f:entry>
+                </tr>
+            </table>
+        </form>
+        <form id="checkin-form" action="checkin" method="post">
+            <table>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="Checkin-submit" value="Checkin"/>
+                    </f:entry>
+                </tr>
+            </table>
+        </form>
+        <script>
+            alert(document.getElementById('checkin-form'));
+//            .submit(function() {
+//                alert("click");
+//            });
+        </script>
     </l:main-panel>
 </l:layout>
 </j:jelly>
