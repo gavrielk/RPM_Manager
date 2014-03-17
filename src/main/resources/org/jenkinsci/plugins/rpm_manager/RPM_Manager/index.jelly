@@ -4,6 +4,8 @@
 <j:set var="descriptor" value="${it.descriptor}" />
 <st:bind var="instance" value="${it}" />
 <st:bind var="descriptor" value="${it.descriptor}" />
+<script type="text/javascript" src="${rootURL}/plugin/RPM_Manager/jquery-1.11.0.min.js"></script>
+<link type="text/css" href="${rootURL}/plugin/RPM_Manager/RPM_Manager1.css" rel="stylesheet" />
 <script>
     
     // Get files related parts (source file path, dest file path and file permissions)
@@ -78,21 +80,9 @@
             document.getElementsByName('source-file-add')[0].value = "";
         }
     }
-
-    function initForms(){
-        document.getElementById('validate-form').submit(function() {
-            alert("click");
-        });
-        document.getElementById('checkin-form').submit(function() {
-            alert("click");
-        });
-    }
     
-    function getErrorMessage(){
-        descriptor.doGetErrorMessage(document.getElementsByName('_.dir')[0].value, function(t) {
-            document.getElementsByName('_.dir-permissions')[0].value = t.responseObject();
-            document.getElementsByName('dir-permissions-add')[0].value = t.responseObject();
-        });
+    function showUpdatingMessage(){
+        document.getElementById('message-box').innerHTML = "Updating.....Duration: about 40 sec.";
     }
 </script>
 <l:layout title="RPM Manager" secured="true">
@@ -102,52 +92,46 @@
             <l:task icon="images/24x24/up.gif" href="${rootURL}/" title="${%Back to Jenkins}"/>
             <l:task icon="images/24x24/up.gif" href="${rootURL}/job/${it.getJobName()}" title="${%Back to }${it.getJobName()}"/>
             <l:task icon="plugin/RPM_Manager/rpm-icon.png" href="index" title="RPM Manager"/>
-            <l:task icon="plugin/RPM_Manager/versions-icon.png" href="versions" title="Version Manager"/>
+            <l:task icon="plugin/RPM_Manager/version-icon.png" href="versions" title="Version Manager"/>
             <l:task icon="plugin/RPM_Manager/projects-icon.png" href="projects" title="Projects Manager"/>
         </l:tasks>
     </l:side-panel>
     <l:main-panel>
         <H1>${it.getJobName()} RPM Manager</H1>
+        <H3 id="message-box">${it.getErrorMessage()}</H3>
         <form action="submit" method="post">
-            <table style="border-style:solid;border-width:1px;">
+            <table>
                 <tr>
-                    <f:entry title="RPMs list:" field="rpm">
+                    <f:entry title="Choose RPM:" field="rpm">
                         <f:select onchange="getSWProjects();" />
+                    </f:entry>
+                </tr>
+                <tr>
+                    <f:entry title="New RPM name:">
+                        <f:textbox name="rpm-add-name" value=""/>
                     </f:entry>
                 </tr>
                 <tr>
                     <f:entry title="" >
                         <f:submit name="rpm-remove-submit" value="Remove"/>
+                        <f:submit name="rpm-add-submit" value="Add"/>
                     </f:entry>
                 </tr>
-                <f:optionalBlock name="rpm-add-block" value="Add RPM" title="Add RPM">
-                    <tr>
-                        <f:entry title="RPM name:">
-                            <f:textbox name="rpm-add-name" value=""/>
-                        </f:entry>
-                    </tr>
-                    <tr>
-                        <f:entry title="" >
-                            <f:submit name="rpm-add-submit" value="Add"/>
-                        </f:entry>
-                    </tr>
-                </f:optionalBlock>
             </table>
-            <table style="border-style:solid;border-width:1px;">
-                <f:entry title="">
-                    <div style="text-decoration: underline">Dirs in RPM:</div>
-                </f:entry>
+            <table class="resource-title">
+                <tr>
+                    <td>
+                        <p>Dirs in RPM:</p>
+                    </td>
+                </tr>
+            </table>
+            <table class="resource-table">
                 <tr>
                     <f:entry title="Dirs" field="dir">
                         <f:select onchange="getDirPermissions(); getDir();" />
                     </f:entry>
                     <f:entry title="Permissions" field="dir-permissions">
                         <f:textbox />
-                    </f:entry>
-                </tr>
-                <tr>
-                    <f:entry title="" >
-                        <f:submit name="dir-remove-submit" value="Remove"/>
                     </f:entry>
                 </tr>
                 <f:optionalBlock name="dir-add-block" value="Add dir" title="Add dir">
@@ -165,12 +149,16 @@
                         </f:entry>
                     </tr>
                 </f:optionalBlock>
-            </table>
-            <table style="border-style:solid;border-width:1px;">
-                <f:entry title="">
-                    <div style="text-decoration: underline">Files in RPM:</div>
-                </f:entry>
                 <tr>
+                    <f:entry title="" >
+                        <f:submit name="dir-remove-submit" value="Remove"/>
+                    </f:entry>
+                </tr>
+            </table>
+            <!--<H3 class="resource-title">Files in RPM:</H3>-->
+            <table class="resource-table">
+                <tr>
+                    <f:entry title="Files in RPM:"/>
                     <f:entry title="Files" field="file">
                         <f:select onchange="getFilePermissions(); getSourceFile(); getDestFile();" />
                     </f:entry>
@@ -179,11 +167,6 @@
                     </f:entry>
                     <f:entry title="Source" field="source-file">
                         <f:textbox />
-                    </f:entry>
-                </tr>
-                <tr>
-                    <f:entry title="" >
-                        <f:submit name="file-remove-submit" value="Remove"/>
                     </f:entry>
                 </tr>
                 <f:optionalBlock name="file-add-block" value="Add file" title="Add file">
@@ -197,13 +180,11 @@
                         <f:entry title="source:">
                             <f:textbox name="source-file-add" value=""/>
                         </f:entry>
-                        <f:entry title="">
-                            <f:optionalBlock name="sw-project-checkbox" value="Software project" title="Software project">
-                                <f:entry title="Choose project: ">
-                                    <f:select name="sw-project" onchange="fillSWProjectSource();" />
-                                </f:entry>
-                            </f:optionalBlock>
-                        </f:entry>
+                        <f:optionalBlock name="sw-project-checkbox" value="Software project" title="Software project">
+                            <f:entry title="Choose project: ">
+                                <select name="sw-project" onchange="fillSWProjectSource();" />
+                            </f:entry>
+                        </f:optionalBlock>
                     </tr>
                     <tr>
                         <f:entry title="" >
@@ -211,22 +192,20 @@
                         </f:entry>
                     </tr>
                 </f:optionalBlock>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="file-remove-submit" value="Remove"/>
+                    </f:entry>
+                </tr>
             </table>
-            <table style="border-style:solid;border-width:1px;">
-                <f:entry title="">
-                    <div style="text-decoration: underline">Links in RPM:</div>
-                </f:entry>
+            <H3 class="resource-title">Links in RPM:</H3>
+            <table class="resource-table">
                 <tr>
                     <f:entry title="Links" field="link">
                         <f:select onchange="getSourceLink(); getDestLink();" />
                     </f:entry>
                     <f:entry title="Source" field="source-link">
                         <f:textbox />
-                    </f:entry>
-                </tr>
-                <tr>
-                    <f:entry title="" >
-                        <f:submit name="link-remove-submit" value="Remove"/>
                     </f:entry>
                 </tr>
                 <f:optionalBlock name="link-add-block" value="Add link" title="Add link">
@@ -244,32 +223,25 @@
                         </f:entry>
                     </tr>
                 </f:optionalBlock>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="link-remove-submit" value="Remove"/>
+                    </f:entry>
+                </tr>
             </table>
         </form>
-        <form id="validate-form" action="validate" method="post">
+        <br/>
+        <form id="action-form" action="action" method="post">
             <table>
                 <tr>
                     <f:entry title="" >
                         <f:submit name="validate-submit" value="Validate"/>
+                        <f:submit name="checkin-submit" value="Checkin"/>
+                        <f:submit name="update-view-submit" value="Update view" onsubmit="showUpdatingMessage()"/>
                     </f:entry>
                 </tr>
             </table>
         </form>
-        <form id="checkin-form" action="checkin" method="post">
-            <table>
-                <tr>
-                    <f:entry title="" >
-                        <f:submit name="Checkin-submit" value="Checkin"/>
-                    </f:entry>
-                </tr>
-            </table>
-        </form>
-        <script>
-            alert(document.getElementById('checkin-form'));
-//            .submit(function() {
-//                alert("click");
-//            });
-        </script>
     </l:main-panel>
 </l:layout>
 </j:jelly>

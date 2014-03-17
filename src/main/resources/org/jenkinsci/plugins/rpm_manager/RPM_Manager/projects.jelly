@@ -59,13 +59,6 @@
                         <f:textbox />
                     </f:entry>
                 </tr>
-                <tr>
-                    <f:entry title="" >
-                        <f:submit name="project-remove-submit" value="Remove"/>
-                    </f:entry>
-                </tr>
-            </table>
-            <table>
                 <f:optionalBlock name="project-add-block" value="Add project" title="Add new project">
                     <tr>
                         <f:entry title="Project name:">
@@ -93,6 +86,11 @@
                         </f:entry>
                     </tr>
                 </f:optionalBlock>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="project-remove-submit" value="Remove"/>
+                    </f:entry>
+                </tr>
             </table>
         </form>
         <form action="validate" method="post">

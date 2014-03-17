@@ -73,6 +73,7 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
     private static String rpmManagersScriptPath;
     private static File tempScriptOutputFile = new File("/var/log/jenkins/RPM_Manager.out");
     private static File logFile = new File("/var/log/jenkins/RPM_Manager.log");
+    private static String lastErrorMessage = "";
     
     public RPM_Manager() 
     {
@@ -334,12 +335,44 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
             }
         }catch(RPMManagerScriptException ex){
             Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
+            RPM_Manager.lastErrorMessage = ex.message;
         }
         
         rsp.sendRedirect2(req.getReferer());
     }
     
-    public void doValidate(StaplerRequest req, StaplerResponse rsp) throws IOException  
+    public void doAction(StaplerRequest req, StaplerResponse rsp) throws IOException  
+    {
+        String validateSubmit = req.getParameter("validate-submit");
+        String checkinSubmit = req.getParameter("checkin-submit");
+        String updateViewSubmit = req.getParameter("update-view-submit");
+        
+        String redirectionURL = req.getReferer();
+        
+        if (validateSubmit != null)
+        {
+            validate();
+            // http://10.10.12.164:8080/job/Genesis-1.8/5/console
+            redirectionURL = this.project.getLastBuild().getAbsoluteUrl() + "console";
+        }
+        else if (checkinSubmit != null)
+        {
+            checkin();
+        }
+        else if (updateViewSubmit != null)
+        {
+            updateView();
+        }
+        
+        rsp.sendRedirect2(redirectionURL);
+    }
+
+    /**
+     * Executing a build without updating the view so the user can run this before checking in the changes to verify the build is not broken
+     * if he there is any problem he can uncheckout the files
+     * @throws IOException
+     */
+    public void validate() throws IOException  
     {
         List<ParameterValue> values = new ArrayList<ParameterValue>();
         List<ParameterDefinition> definitions = new ArrayList<ParameterDefinition>();
@@ -371,20 +404,36 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         } catch (InterruptedException ex) {
             Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
         }
-        // http://10.10.12.164:8080/job/Genesis-1.8/5/console
-        rsp.sendRedirect2(this.project.getLastBuild().getAbsoluteUrl() + "console");
     }
     
-    public void doCheckin(StaplerRequest req, StaplerResponse rsp) throws IOException  
+    public void checkin() throws IOException  
     {
-//        try 
-//        {
-//            RPM_Manager.executeRPMManagerCommand(Arrays.asList(new String[]{"checkin"}));
-//        } catch (RPMManagerScriptException ex) {
-//            Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
-//        }
-//        
-        rsp.sendRedirect2(req.getReferer());
+        try 
+        {
+            RPM_Manager.executeRPMManagerCommand(Arrays.asList(new String[]{"checkin"}));
+        } catch (RPMManagerScriptException ex) {
+            RPM_Manager.lastErrorMessage = ex.message;
+            Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public void updateView() throws IOException  
+    {
+        try 
+        {
+            RPM_Manager.executeRPMManagerCommand(Arrays.asList(new String[]{"update-view"}));
+        } catch (RPMManagerScriptException ex) {
+            RPM_Manager.lastErrorMessage = ex.message;
+            Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public String getErrorMessage()
+    {
+        String message = RPM_Manager.lastErrorMessage;
+        System.out.println("message  : " + message);
+        RPM_Manager.lastErrorMessage = "";
+        return message;
     }
     
     @Override
@@ -779,6 +828,7 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
                     DescriptorImpl.userSelectedRpmResource = new RpmResource(versionsList, summary, ArrayListToString(description));
                 } catch (RPMManagerScriptException ex) {
                     Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
+                    
                 }
             }
             return DescriptorImpl.userSelectedRpmResource;
@@ -856,14 +906,15 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
 //                outputArr.remove(0);
         }
 
-        String returnMessage = outputArr.remove(outputArr.size() - 1);
+        String returnMessage = outputArr.get(outputArr.size() - 1);
         if (returnMessage.equals("[OK]"))
         {
+            outputArr.remove(outputArr.size() - 1);
             return outputArr;
         }
         else
         {
-            throw new RPMManagerScriptException("Error occured while running " + rpmManagerCMD.toString() + "\nError message: " + returnMessage);
+            throw new RPMManagerScriptException(outputArr);
         }
     }
     

@@ -57,7 +57,7 @@
     <l:main-panel>
         <H1>${it.getJobName()} Version Manager</H1>
         <form action="submit" method="post">
-            <table style="border-style:solid;border-width:5px;">
+            <table>
                 <tr>
                     <f:entry title="RPMs list:" field="versionRpm">
                         <f:select onchange="initRPMInfo();"/>
@@ -108,17 +108,6 @@
                         </f:entry>
                     </tr>
                 </f:optionalBlock>
-<!--                <tr>onchange="getVarValue();"
-                    <j:forEach var="varibable" items="${descriptor.doGetRPMDep(rpmName}" varStatus="loop">
-                        <f:entry title="Existing schedules:">
-                            <select name="existingSchedules">
-                                    <option value="${schedule.toString()}">
-                                        ${schedule.toString()}
-                                    </option>
-                            </select>
-                        </f:entry>
-                    </j:forEach>
-                </tr>-->
                 <tr>
                     <f:entry title="" >
                         <f:submit name="version-save-submit" value="Save"/>
