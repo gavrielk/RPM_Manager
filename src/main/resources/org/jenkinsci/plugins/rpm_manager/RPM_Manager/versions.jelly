@@ -1,9 +1,9 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project">
-<j:set var="instance" value="${it}" />
 <j:set var="descriptor" value="${it.descriptor}" />
-<st:bind var="instance" value="${it}" />
+<st:bind var="it" value="${it}" />
 <st:bind var="descriptor" value="${it.descriptor}" />
+<link type="text/css" href="${rootURL}/plugin/RPM_Manager/RPM_Manager1.css" rel="stylesheet" />
 <script>
     
     // NOTE: you cannot use ampercent inside jelly file thus the if must be seperated
@@ -42,6 +42,13 @@
         }
     }
     
+    function showUpdatingMessage(){
+        document.getElementById('info-message-box').innerHTML = "Updating.....Duration: about 40 sec.";
+    }
+    
+    function expendErrorMessage(fullMessage){
+        document.getElementById('expended-error-message-box').innerHTML = fullMessage;
+    }
 </script>
 <l:layout title="Version Manager" secured="true">
 <l:header/>
@@ -50,14 +57,23 @@
             <l:task icon="images/24x24/up.gif" href="${rootURL}/" title="${%Back to Jenkins}"/>
             <l:task icon="images/24x24/up.gif" href="${rootURL}/job/${it.getJobName()}" title="${%Back to }${it.getJobName()}"/>
             <l:task icon="plugin/RPM_Manager/rpm-icon.png" href="index" title="RPM Manager"/>
-            <l:task icon="plugin/RPM_Manager/versions-icon.png" href="versions" title="Version Manager"/>
+            <l:task icon="plugin/RPM_Manager/version-icon.png" href="versions" title="Version Manager"/>
             <l:task icon="plugin/RPM_Manager/projects-icon.png" href="projects" title="Projects Manager"/>
         </l:tasks>
     </l:side-panel>
     <l:main-panel>
         <H1>${it.getJobName()} Version Manager</H1>
+        <H3 id="info-message-box"/>
+        <j:set var="errorMessage" value="${it.getErrorMessage()}"/>
+        <j:if test="${errorMessage != null}">
+            <H3 id="error-message-box">${errorMessage.shortMessage}</H3>
+            <H5 id="expended-error-message-box">For more details click <a href="javascript:expendErrorMessage('${errorMessage.fullMessage}');">here</a></H5>
+        </j:if>
         <form action="submit" method="post">
-            <table>
+            <table class="resource-table">
+                <f:invisibleEntry title="job-name">
+                    <f:textbox name="job-name"  value="${it.getJobName()}"/>
+                </f:invisibleEntry>
                 <tr>
                     <f:entry title="RPMs list:" field="versionRpm">
                         <f:select onchange="initRPMInfo();"/>
@@ -98,6 +114,11 @@
                         <f:textbox name="var-value" value=""/>
                     </f:entry>
                 </tr>
+                <tr>
+                    <f:entry title="" >
+                        <f:submit name="var-remove-submit" value="Remove version variable"/>
+                    </f:entry>
+                </tr>
                 <f:optionalBlock name="var-add-block" value="Add version variable" title="Add version variable">
                     <tr>
                         <f:entry title="Version variable:">
@@ -110,29 +131,72 @@
                 </f:optionalBlock>
                 <tr>
                     <f:entry title="" >
-                        <f:submit name="version-save-submit" value="Save"/>
+                        <f:submit name="version-save-submit" value="Checkout and Save"/>
                     </f:entry>
                 </tr>
             </table>
         </form>
-        <form action="validate" method="post">
-            <table>
-                <tr>
-                    <f:entry title="" >
-                        <f:submit name="validate-submit" value="Validate"/>
-                    </f:entry>
-                </tr>
-            </table>
-        </form>
-        <form action="checkin" method="post">
-            <table>
-                <tr>
-                    <f:entry title="" >
-                        <f:submit name="Checkin-submit" value="Checkin"/>
-                    </f:entry>
-                </tr>
-            </table>
-        </form>
+        <br/>
+        <table>
+            <tr>
+                <td>
+                    <form id="action-form" action="action" method="post">
+                        <table>
+                            <tr>
+                                <f:invisibleEntry title="job-name">
+                                    <f:textbox name="job-name"  value="${it.getJobName()}"/>
+                                </f:invisibleEntry>
+                                <f:entry title="" >
+                                    <f:submit name="validate-submit" value="Validate"/>
+                                </f:entry>
+                            </tr>
+                        </table>
+                    </form>
+                </td>
+                <td>
+                    <form id="action-form" action="action" method="post">
+                        <table>
+                            <tr>
+                                <f:invisibleEntry title="job-name">
+                                    <f:textbox name="job-name"  value="${it.getJobName()}"/>
+                                </f:invisibleEntry>
+                                <f:entry title="" >
+                                    <f:submit name="checkin-submit" value="Checkin changes"/>
+                                </f:entry>
+                            </tr>
+                        </table>
+                    </form>
+                </td>
+                <td>
+                    <form id="action-form" action="action" method="post" onsubmit="showUpdatingMessage()">
+                        <table>
+                            <tr>
+                                <f:invisibleEntry title="job-name">
+                                    <f:textbox name="job-name"  value="${it.getJobName()}"/>
+                                </f:invisibleEntry>
+                                <f:entry title="" >
+                                    <f:submit name="update-view-submit" value="Update view"/>
+                                </f:entry>
+                            </tr>
+                        </table>
+                    </form>
+                </td>
+                <td>
+                    <form id="action-form" action="action" method="post">
+                        <table>
+                            <tr>
+                                <f:invisibleEntry title="job-name">
+                                    <f:textbox name="job-name"  value="${it.getJobName()}"/>
+                                </f:invisibleEntry>
+                                <f:entry title="" >
+                                    <f:submit name="uncheckout-submit" value="Undo uncheckedin changes"/>
+                                </f:entry>
+                            </tr>
+                        </table>
+                    </form>
+                </td>
+            </tr>
+        </table>
     </l:main-panel>
 </l:layout>
 </j:jelly>

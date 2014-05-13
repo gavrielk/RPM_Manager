@@ -8,11 +8,14 @@ package org.jenkinsci.plugins.rpm_manager.resources;
 
 /**
  * Description: 
- * Every file entry that RPM_Manager returns regarding a file consists of 3 part:
- * 1) permission
- * 2) source location
- * 3) dest location
+ * Every project entry that RPM_Manager returns regarding a project consists of 3 part:
+ * 1) project name
+ * 2) project path
+ * 3) product path
+ * We also store the containing rpm name to display to the user to help him know where to put the new project he wishes to add:
+ * 4) containing RPM
  * This class will parse the entry and contain those details
+ * this.resource = project name
  * 
  * @author gavrielk
  */

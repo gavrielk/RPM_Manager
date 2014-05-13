@@ -12,18 +12,32 @@ import java.util.ArrayList;
  *
  * @author gavrielk
  */
-class RPMManagerScriptException extends Exception {
+public class RPMManagerScriptException extends Exception {
     
-    String message = "";
+    public String shortMessage = "";
+    public String fullMessage = "";
 
     public RPMManagerScriptException(String message) {
         super(message);
     }
     
     public RPMManagerScriptException(ArrayList<String> message) {
-        for (int i = 0; i < message.size(); i++)
+        int i;
+        for (i = 0; i < message.size(); i++)
         {
-            this.message += message.get(i) + "\n";
+            this.fullMessage += message.get(i) + "\n";
+            if (message.get(i).startsWith("[ERROR]") == true)
+            {
+                if (this.shortMessage.isEmpty() == false)
+                {
+                    this.shortMessage += "\n";
+                }
+                this.shortMessage += message.get(i);
+            }
+        }
+        if (this.shortMessage.isEmpty() == true && this.fullMessage.isEmpty() == false)
+        {
+            this.shortMessage = this.fullMessage;
         }
     }
     

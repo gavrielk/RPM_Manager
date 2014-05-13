@@ -13,6 +13,7 @@ package org.jenkinsci.plugins.rpm_manager.resources;
  * 2) source location
  * 3) dest location
  * This class will parse the entry and contain those details
+ * this.resource = dest location
  * 
  * @author gavrielk
  */

@@ -1,12 +1,21 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt" xmlns:p="/lib/hudson/project">
-<j:set var="instance" value="${it}" />
 <j:set var="descriptor" value="${it.descriptor}" />
-<st:bind var="instance" value="${it}" />
+<st:bind var="it" value="${it}" />
 <st:bind var="descriptor" value="${it.descriptor}" />
 <script type="text/javascript" src="${rootURL}/plugin/RPM_Manager/jquery-1.11.0.min.js"></script>
 <link type="text/css" href="${rootURL}/plugin/RPM_Manager/RPM_Manager1.css" rel="stylesheet" />
 <script>
+    
+//    jQuery(document).ready(function() {
+//        alert("Doc ready");
+//        document.getElementsByName('validate-submit')[0].click(fillSWProjectSource());
+//        document.getElementsByName('checkin-submit')[0].click(fillSWProjectSource());
+//        jQuery('[name="update-view-submit"]').click( function(){
+//            alert("update-view-submit click");it.getErrorMessage()
+//            document.getElementById('message-box').innerHTML = descriptor.getErrorMessage();
+//        });
+//    });
     
     // Get files related parts (source file path, dest file path and file permissions)
     function getDestFile(){
@@ -82,7 +91,11 @@
     }
     
     function showUpdatingMessage(){
-        document.getElementById('message-box').innerHTML = "Updating.....Duration: about 40 sec.";
+        document.getElementById('info-message-box').innerHTML = "Updating..... Duration: about 40 sec.";
+    }
+    
+    function expendErrorMessage(fullMessage){
+        document.getElementById('expended-error-message-box').innerHTML = fullMessage;
     }
 </script>
 <l:layout title="RPM Manager" secured="true">
@@ -98,9 +111,19 @@
     </l:side-panel>
     <l:main-panel>
         <H1>${it.getJobName()} RPM Manager</H1>
-        <H3 id="message-box">${it.getErrorMessage()}</H3>
+        <H3 id="info-message-box"/>
+        <j:set var="errorMessage" value="${it.getErrorMessage()}"/>
+        <j:if test="${errorMessage != null}">
+            <H3 id="error-message-box">${errorMessage.shortMessage}</H3>
+            <H5 id="expended-error-message-box">For more details click <a href="javascript:expendErrorMessage('${errorMessage.fullMessage}');">here</a></H5>
+        </j:if>
         <form action="submit" method="post">
             <table>
+                <!-- A hidden field to store the project name, so the server knows what project has asked to perform the save
+                (this is needed due to the server static context -->
+                <f:invisibleEntry title="job-name">
+                    <f:textbox name="job-name"  value="${it.getJobName()}"/>
+                </f:invisibleEntry>
                 <tr>
                     <f:entry title="Choose RPM:" field="rpm">
                         <f:select onchange="getSWProjects();" />
@@ -118,13 +141,7 @@
                     </f:entry>
                 </tr>
             </table>
-            <table class="resource-title">
-                <tr>
-                    <td>
-                        <p>Dirs in RPM:</p>
-                    </td>
-                </tr>
-            </table>
+            <H3 class="resource-title">Dirs in RPM:</H3>
             <table class="resource-table">
                 <tr>
                     <f:entry title="Dirs" field="dir">
@@ -155,10 +172,9 @@
                     </f:entry>
                 </tr>
             </table>
-            <!--<H3 class="resource-title">Files in RPM:</H3>-->
+            <H3 class="resource-title">Files in RPM:</H3>
             <table class="resource-table">
                 <tr>
-                    <f:entry title="Files in RPM:"/>
                     <f:entry title="Files" field="file">
                         <f:select onchange="getFilePermissions(); getSourceFile(); getDestFile();" />
                     </f:entry>
@@ -231,17 +247,66 @@
             </table>
         </form>
         <br/>
-        <form id="action-form" action="action" method="post">
-            <table>
-                <tr>
-                    <f:entry title="" >
-                        <f:submit name="validate-submit" value="Validate"/>
-                        <f:submit name="checkin-submit" value="Checkin"/>
-                        <f:submit name="update-view-submit" value="Update view" onsubmit="showUpdatingMessage()"/>
-                    </f:entry>
-                </tr>
-            </table>
-        </form>
+        <table>
+            <tr>
+                <td>
+                    <form id="action-form" action="action" method="post">
+                        <table>
+                            <tr>
+                                <f:invisibleEntry title="job-name">
+                                    <f:textbox name="job-name"  value="${it.getJobName()}"/>
+                                </f:invisibleEntry>
+                                <f:entry title="" >
+                                    <f:submit name="validate-submit" value="Validate"/>
+                                </f:entry>
+                            </tr>
+                        </table>
+                    </form>
+                </td>
+                <td>
+                    <form id="action-form" action="action" method="post">
+                        <table>
+                            <tr>
+                                <f:invisibleEntry title="job-name">
+                                    <f:textbox name="job-name"  value="${it.getJobName()}"/>
+                                </f:invisibleEntry>
+                                <f:entry title="" >
+                                    <f:submit name="checkin-submit" value="Checkin changes"/>
+                                </f:entry>
+                            </tr>
+                        </table>
+                    </form>
+                </td>
+                <td>
+                    <form id="action-form" action="action" method="post" onsubmit="showUpdatingMessage()">
+                        <table>
+                            <tr>
+                                <f:invisibleEntry title="job-name">
+                                    <f:textbox name="job-name"  value="${it.getJobName()}"/>
+                                </f:invisibleEntry>
+                                <f:entry title="" >
+                                    <f:submit name="update-view-submit" value="Update view"/>
+                                </f:entry>
+                            </tr>
+                        </table>
+                    </form>
+                </td>
+                <td>
+                    <form id="action-form" action="action" method="post">
+                        <table>
+                            <tr>
+                                <f:invisibleEntry title="job-name">
+                                    <f:textbox name="job-name"  value="${it.getJobName()}"/>
+                                </f:invisibleEntry>
+                                <f:entry title="" >
+                                    <f:submit name="uncheckout-submit" value="Undo uncheckedin changes"/>
+                                </f:entry>
+                            </tr>
+                        </table>
+                    </form>
+                </td>
+            </tr>
+        </table>
     </l:main-panel>
 </l:layout>
 </j:jelly>

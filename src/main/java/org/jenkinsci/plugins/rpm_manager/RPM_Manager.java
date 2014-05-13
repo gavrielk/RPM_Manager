@@ -19,6 +19,7 @@ import hudson.model.ParametersDefinitionProperty;
 import hudson.security.Permission;
 import hudson.tasks.Builder;
 import hudson.util.ListBoxModel;
+import hudson.util.ListBoxModel.Option;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -38,9 +39,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.servlet.ServletException;
 import jenkins.model.Jenkins;
-import jenkins.util.TimeDuration;
 import org.jenkinsci.plugins.rpm_manager.resources.DirResource;
 import org.jenkinsci.plugins.rpm_manager.resources.IResource;
 import org.jenkinsci.plugins.rpm_manager.resources.ProjectResource;
@@ -73,7 +72,7 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
     private static String rpmManagersScriptPath;
     private static File tempScriptOutputFile = new File("/var/log/jenkins/RPM_Manager.out");
     private static File logFile = new File("/var/log/jenkins/RPM_Manager.log");
-    private static String lastErrorMessage = "";
+    private static RPMManagerScriptException lastErrorMessage;
     
     public RPM_Manager() 
     {
@@ -156,6 +155,12 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         String projectName = req.getParameter("_.project");
         System.out.println("projectName=" + projectName);
         
+        // init the RPM_Manager.sh path to point to the current project that the "Save"/"Remove" buttons were press from.
+        // In order to make sure that the we don't save info in the wrong view
+        String jobName = req.getParameter("job-name");
+        System.out.println("jobName=" + jobName);
+        RPM_Manager.rpmManagersScriptPath = getRPMManagerPath(this.project.getName());
+        
         Iterator keySetIt = req.getParameterMap().keySet().iterator();
         Object key;
         while (keySetIt.hasNext())
@@ -166,22 +171,26 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         
         try
         {
-            if (isBlank(new String[]{rpmName}) == false)
+            // Not working due to clearcase permission issues
+//            if (rpmRemove != null)
+//            {
+//                if (isBlank(new String[]{rpmName}) == false)
+//                {
+//                    executeRPMManagerCommand(Arrays.asList(new String[]{"remove", "rpm", rpmName}));
+//                }
+//            }
+            if(rpmAdd != null)
             {
-                if (rpmRemove != null)
+                String rpmAddName = req.getParameter("rpm-add-name");
+                System.out.println("rpmAddName=" + rpmAddName);
+                if (isBlank(new String[]{rpmAddName}) == false)
                 {
-                    executeRPMManagerCommand(Arrays.asList(new String[]{"remove", "rpm", rpmName}));
+                    executeRPMManagerCommand(Arrays.asList(new String[]{"add", "rpm", rpmAddName}));
                 }
-                else if(rpmAdd != null)
-                {
-                    String rpmAddName = req.getParameter("rpm-add-name");
-                    System.out.println("rpmAddName=" + rpmAddName);
-                    if (isBlank(new String[]{rpmAddName}) == false)
-                    {
-                        executeRPMManagerCommand(Arrays.asList(new String[]{"add", "rpm", rpmAddName}));
-                    }
-                }
-                else if(dirRemove != null)
+            }
+            else if (isBlank(new String[]{rpmName}) == false)
+            {
+                if(dirRemove != null)
                 {
                     String dir = req.getParameter("_.dir");
                     System.out.println("dir=" + dir);
@@ -203,11 +212,13 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
                 }
                 else if(fileRemove != null)
                 {
-                    String file = req.getParameter("_.file");
-                    System.out.println("file=" + file);
-                    if (isBlank(new String[]{file}) == false)
+                    String fileSource = req.getParameter("_.file");
+                    String fileDest = req.getParameter("_.source-file");
+                    System.out.println("fileSource=" + fileSource);
+                    System.out.println("fileDest=" + fileDest);
+                    if (isBlank(new String[]{fileSource, fileDest}) == false)
                     {
-                        executeRPMManagerCommand(Arrays.asList(new String[]{"remove", "file", rpmName, file}));
+                        executeRPMManagerCommand(Arrays.asList(new String[]{"remove", "file", rpmName, fileSource, fileDest}));
                     }
                 }
                 else if(fileAdd != null)
@@ -225,11 +236,13 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
                 }
                 else if(linkRemove != null)
                 {
-                    String destLink = req.getParameter("_.link");
-                    System.out.println("linkRemoveName=" + destLink);
-                    if (isBlank(new String[]{destLink}) == false)
+                    String linkSource = req.getParameter("_.source-link");
+                    String linkDest = req.getParameter("_.link");
+                    System.out.println("linkSource=" + linkSource);
+                    System.out.println("linkDest=" + linkDest);
+                    if (isBlank(new String[]{linkDest, linkSource}) == false)
                     {
-                        executeRPMManagerCommand(Arrays.asList(new String[]{"remove", "link", rpmName, destLink}));
+                        executeRPMManagerCommand(Arrays.asList(new String[]{"remove", "link", rpmName, linkSource, linkDest}));
                     }
                 }
                 else if(linkAdd != null)
@@ -285,8 +298,9 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
                 String savedDep = req.getParameter("rpm-dep");
                 String savedSummary = req.getParameter("rpm-summary");
                 String savedDescription = req.getParameter("rpm-description");
-                String savedVarKey = req.getParameter("variables");
+                String savedVarKey = req.getParameter("_.variable");
                 String savedVarValue = req.getParameter("var-value");
+                String removeVarSubmit = req.getParameter("var-remove-submit");
                 String newVarAdd = req.getParameter("var-add-block"); // this is the check box in which we add new variable
                 System.out.println("savedVersion=" + savedVersion);
                 System.out.println("savedRelease=" + savedRelease);
@@ -295,47 +309,55 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
                 System.out.println("savedDescription=" + savedDescription);
                 System.out.println("savedVarKey=" + savedVarKey);
                 System.out.println("savedVarValue=" + savedVarValue);
+                System.out.println("removeVarSubmit=" + removeVarSubmit);
                 System.out.println("newVarAdd=" + newVarAdd);
 
-                RPM_Manager.rpmManagersScriptPath = getRPMManagerPath(this.project.getName());
+//                RPM_Manager.rpmManagersScriptPath = getRPMManagerPath(this.project.getName());
                 RpmResource currentRpm = DescriptorImpl.getRpmResource(versionRpmName);
-                if (isBlank(new String[]{savedVersion}) == false && savedVersion.equals(currentRpm.getVersion()) == false)
+                if (isBlank(new String[]{removeVarSubmit, savedVarKey}) == false)
                 {
-                    executeRPMManagerCommand(Arrays.asList(new String[]{"change", "version", versionRpmName, savedVersion}));
+                    executeRPMManagerCommand(Arrays.asList(new String[]{"remove", "variable", versionRpmName, savedVarKey}));
                 }
-                if (isBlank(new String[]{savedRelease}) == false && savedRelease.equals(currentRpm.getRelease()) == false)
+                else
                 {
-                    executeRPMManagerCommand(Arrays.asList(new String[]{"change", "release", versionRpmName, savedRelease}));
-                }
-                if (isBlank(new String[]{savedDep}) == false && savedDep.equals(currentRpm.getDependencies()) == false)
-                {
-                    executeRPMManagerCommand(Arrays.asList(new String[]{"change", "requires", versionRpmName, savedDep}));
-                }
-                if (isBlank(new String[]{savedSummary}) == false && savedSummary.equals(currentRpm.getSummary()) == false)
-                {
-                    executeRPMManagerCommand(Arrays.asList(new String[]{"change", "summary", versionRpmName, savedSummary}));
-                }
-                if (isBlank(new String[]{savedDescription}) == false && fixCrLf(savedDescription).equals(currentRpm.getDescription()) == false)
-                {
-                    executeRPMManagerCommand(Arrays.asList(new String[]{"change", "description", versionRpmName, fixCrLf(savedDescription)}));
-                }
-                if (isBlank(new String[]{savedVarKey, savedVarValue}) == false && savedVarValue.equals(currentRpm.getVarValue(savedVarKey)) == false)
-                {
-                    executeRPMManagerCommand(Arrays.asList(new String[]{"change", "variable", versionRpmName, savedVarKey, savedVarValue}));
-                }
-                if (isBlank(new String[]{newVarAdd}) == false)
-                {
-                    String newVarKey = req.getParameter("var-key-add");
-                    String newVarValue = req.getParameter("var-value-add");
-                    System.out.println("newVarKey=" + newVarKey);
-                    System.out.println("newVarValue=" + newVarValue);
-                    
-                    executeRPMManagerCommand(Arrays.asList(new String[]{"add", "variable", versionRpmName, newVarKey, newVarValue}));
+                    if (isBlank(new String[]{savedVersion}) == false && savedVersion.equals(currentRpm.getVersion()) == false)
+                    {
+                        executeRPMManagerCommand(Arrays.asList(new String[]{"change", "version", versionRpmName, savedVersion}));
+                    }
+                    if (isBlank(new String[]{savedRelease}) == false && savedRelease.equals(currentRpm.getRelease()) == false)
+                    {
+                        executeRPMManagerCommand(Arrays.asList(new String[]{"change", "release", versionRpmName, savedRelease}));
+                    }
+                    if (isBlank(new String[]{savedDep}) == false && savedDep.equals(currentRpm.getDependencies()) == false)
+                    {
+                        executeRPMManagerCommand(Arrays.asList(new String[]{"change", "requires", versionRpmName, savedDep}));
+                    }
+                    if (isBlank(new String[]{savedSummary}) == false && savedSummary.equals(currentRpm.getSummary()) == false)
+                    {
+                        executeRPMManagerCommand(Arrays.asList(new String[]{"change", "summary", versionRpmName, savedSummary}));
+                    }
+                    if (isBlank(new String[]{savedDescription}) == false && fixCrLf(savedDescription).equals(currentRpm.getDescription()) == false)
+                    {
+                        executeRPMManagerCommand(Arrays.asList(new String[]{"change", "description", versionRpmName, fixCrLf(savedDescription)}));
+                    }
+                    if (isBlank(new String[]{savedVarKey, savedVarValue}) == false && savedVarValue.equals(currentRpm.getVarValue(savedVarKey)) == false)
+                    {
+                        executeRPMManagerCommand(Arrays.asList(new String[]{"change", "variable", versionRpmName, savedVarKey, savedVarValue}));
+                    }
+                    if (isBlank(new String[]{newVarAdd}) == false)
+                    {
+                        String newVarKey = req.getParameter("var-key-add");
+                        String newVarValue = req.getParameter("var-value-add");
+                        System.out.println("newVarKey=" + newVarKey);
+                        System.out.println("newVarValue=" + newVarValue);
+
+                        executeRPMManagerCommand(Arrays.asList(new String[]{"add", "variable", versionRpmName, newVarKey, newVarValue}));
+                    }
                 }
             }
         }catch(RPMManagerScriptException ex){
+            RPM_Manager.lastErrorMessage = ex;
             Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
-            RPM_Manager.lastErrorMessage = ex.message;
         }
         
         rsp.sendRedirect2(req.getReferer());
@@ -346,6 +368,13 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         String validateSubmit = req.getParameter("validate-submit");
         String checkinSubmit = req.getParameter("checkin-submit");
         String updateViewSubmit = req.getParameter("update-view-submit");
+        String uncheckoutSubmit = req.getParameter("uncheckout-submit");
+        
+        // init the RPM_Manager.sh path to point to the current project that the "Save"/"Remove" buttons were press from.
+        // In order to make sure that the we don't save info in the wrong view
+        String jobName = req.getParameter("job-name");
+        System.out.println("jobName=" + jobName);
+        RPM_Manager.rpmManagersScriptPath = getRPMManagerPath(this.project.getName());
         
         String redirectionURL = req.getReferer();
         
@@ -362,6 +391,10 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         else if (updateViewSubmit != null)
         {
             updateView();
+        }
+        else if (uncheckoutSubmit != null)
+        {
+            uncheckout();
         }
         
         rsp.sendRedirect2(redirectionURL);
@@ -386,7 +419,7 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         {
             ParameterValue parameterValue;
             String parameterName = parameterDefinition.getName();
-            if (parameterName.equals("Testing") == true || parameterName.equals("Update_view") == true)
+            if (parameterName.equals("Email_VnV") == true || parameterName.equals("Update_view") == true)
             {
                 parameterValue = new BooleanParameterValue(parameterName, false);
             }
@@ -412,7 +445,7 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         {
             RPM_Manager.executeRPMManagerCommand(Arrays.asList(new String[]{"checkin"}));
         } catch (RPMManagerScriptException ex) {
-            RPM_Manager.lastErrorMessage = ex.message;
+            RPM_Manager.lastErrorMessage = ex;
             Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
@@ -423,17 +456,39 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         {
             RPM_Manager.executeRPMManagerCommand(Arrays.asList(new String[]{"update-view"}));
         } catch (RPMManagerScriptException ex) {
-            RPM_Manager.lastErrorMessage = ex.message;
+            RPM_Manager.lastErrorMessage = ex;
             Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
-    public String getErrorMessage()
+    public void uncheckout() throws IOException  
     {
-        String message = RPM_Manager.lastErrorMessage;
-        System.out.println("message  : " + message);
-        RPM_Manager.lastErrorMessage = "";
-        return message;
+        try 
+        {
+            RPM_Manager.executeRPMManagerCommand(Arrays.asList(new String[]{"uncheckout"}));
+        } catch (RPMManagerScriptException ex) {
+            RPM_Manager.lastErrorMessage = ex;
+            Logger.getLogger(RPM_Manager.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public RPMManagerScriptException getErrorMessage()
+    {
+        RPMManagerScriptException message;
+        if (RPM_Manager.lastErrorMessage != null)
+        {
+            message = RPM_Manager.lastErrorMessage;
+            RPM_Manager.lastErrorMessage = null;
+            System.out.println("message  : " + message.shortMessage);
+            message.fullMessage = message.fullMessage.replaceAll("\\n", "<br/>");
+            message.fullMessage = message.fullMessage.replaceAll("\'", "&quot;");
+            System.out.println("fullMessage  : " + message.fullMessage);
+            return message;
+        }
+        else
+        {
+            return null;
+        }
     }
     
     @Override
@@ -473,7 +528,20 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
             }
             for (String s : filesArr)
             {
-                m.add(s);
+                Option option = null;
+                System.out.println("s: " + s);
+                if (userSelectedRpmResource != null){
+                    System.out.println("userSelectedRpmResource.getResource(): " + userSelectedRpmResource.getResource());
+                }
+                if (userSelectedRpmResource != null && s.equals(userSelectedRpmResource.getResource()) == true)
+                {
+                    option = new Option(s,s,true);
+                }
+                else
+                {
+                    option = new Option(s,s,false);
+                }
+                m.add(option);
             }
             return m;
         }
@@ -520,14 +588,14 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
             ArrayList<String> projectsArr = null;
             DescriptorImpl.projectResourceArr = new ArrayList<IResource>();
             try {
-                for (ProjectContainingRPMEnum containgRpm : ProjectContainingRPMEnum.values())
+                for (ProjectContainingRPMEnum containingRpm : ProjectContainingRPMEnum.values())
                 {
-                    projectsArr = executeRPMManagerCommand(Arrays.asList(new String[]{"show", "projects", containgRpm.name().toLowerCase()}));
-                    System.out.println("Containing RPM name:" + containgRpm.name());
+                    projectsArr = executeRPMManagerCommand(Arrays.asList(new String[]{"show", "projects", containingRpm.name().toLowerCase()}));
+                    System.out.println("Containing RPM name:" + containingRpm.name());
                     for (String entry : projectsArr)
                     {
-                        System.out.println("Project entry: " + entry + ", Containing RPM: " + containgRpm.name());
-                        DescriptorImpl.projectResourceArr.add(new ProjectResource(entry, containgRpm));
+                        System.out.println("Project entry: " + entry + ", Containing RPM: " + containingRpm.name());
+                        DescriptorImpl.projectResourceArr.add(new ProjectResource(entry, containingRpm));
                     }
                 }
             } catch (RPMManagerScriptException ex) {
@@ -634,6 +702,10 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         @JavaScriptMethod
         public String doGetProjectPath(String project)
         {
+            if (isBlank(new String[]{project}) == true)
+            {
+                return null;
+            }
             int resourceIndex = getResourceIndex(project, DescriptorImpl.projectResourceArr);
             System.out.println("Project found at: " + resourceIndex + ", project path: " + ((ProjectResource)DescriptorImpl.projectResourceArr.get(resourceIndex)).getProjectPath());
             return ((ProjectResource)DescriptorImpl.projectResourceArr.get(resourceIndex)).getProjectPath();
@@ -642,6 +714,10 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         @JavaScriptMethod
         public String doGetProductPath(String project)
         {
+            if (isBlank(new String[]{project}) == true)
+            {
+                return null;
+            }
             int resourceIndex = getResourceIndex(project, DescriptorImpl.projectResourceArr);
             System.out.println("Project found at: " + resourceIndex + ", product path: " + ((ProjectResource)DescriptorImpl.projectResourceArr.get(resourceIndex)).getProductPath());
             return ((ProjectResource)DescriptorImpl.projectResourceArr.get(resourceIndex)).getProductPath();
@@ -650,6 +726,10 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         @JavaScriptMethod
         public String doGetContainingRPM(String project)
         {
+            if (isBlank(new String[]{project}) == true)
+            {
+                return null;
+            }
             int resourceIndex = getResourceIndex(project, DescriptorImpl.projectResourceArr);
             System.out.println("Project found at: " + resourceIndex + ", product path: " + ((ProjectResource)DescriptorImpl.projectResourceArr.get(resourceIndex)).getContainingRPM().name());
             return ((ProjectResource)DescriptorImpl.projectResourceArr.get(resourceIndex)).getContainingRPM().name().toLowerCase();
@@ -658,6 +738,10 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         @JavaScriptMethod
         public String doGetFilePermissions(String file)
         {
+            if (isBlank(new String[]{file}) == true)
+            {
+                return null;
+            }
             int resourceIndex = getResourceIndex(file, fileResourceArr);
             System.out.println("File found at: " + resourceIndex + ", permissions: " + ((FileResource)DescriptorImpl.fileResourceArr.get(resourceIndex)).getPermissions());
             return ((FileResource)DescriptorImpl.fileResourceArr.get(resourceIndex)).getPermissions();
@@ -666,6 +750,10 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         @JavaScriptMethod
         public String doGetSourceFile(String file)
         {
+            if (isBlank(new String[]{file}) == true)
+            {
+                return null;
+            }
             int resourceIndex = getResourceIndex(file, DescriptorImpl.fileResourceArr);
             System.out.println("File found at: " + resourceIndex + ", source: " + ((FileResource)DescriptorImpl.fileResourceArr.get(resourceIndex)).getSource());
             return ((FileResource)DescriptorImpl.fileResourceArr.get(resourceIndex)).getSource();
@@ -700,6 +788,10 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         @JavaScriptMethod
         public String doGetDirPermissions(String file)
         {
+            if (isBlank(new String[]{file}) == true)
+            {
+                return null;
+            }
             int resourceIndex = getResourceIndex(file, dirResourceArr);
             System.out.println("Dir found at: " + resourceIndex + ", permissions: " + ((DirResource)DescriptorImpl.dirResourceArr.get(resourceIndex)).getPermissions());
             return ((DirResource)DescriptorImpl.dirResourceArr.get(resourceIndex)).getPermissions();
@@ -708,6 +800,10 @@ public class RPM_Manager implements Action, Describable<RPM_Manager> {
         @JavaScriptMethod
         public String doGetSourceLink(String link)
         {
+            if (isBlank(new String[]{link}) == true)
+            {
+                return null;
+            }
             int resourceIndex = getResourceIndex(link, DescriptorImpl.linkResourceArr);
             System.out.println("Link found at: " + resourceIndex + ", source link: " + ((LinkResource)DescriptorImpl.linkResourceArr.get(resourceIndex)).getSource());
             return ((LinkResource)DescriptorImpl.linkResourceArr.get(resourceIndex)).getSource();

@@ -13,11 +13,16 @@ import java.util.Set;
 
 /**
  * Description: 
- * Every file entry that RPM_Manager returns regarding a file consists of 3 part:
- * 1) permission
- * 2) source location
- * 3) dest location
+ * This is an object that contains the info regarding the RPM most of version, release, dependencies and variables are listed in spec_def and summary and description
+ * are listed in the spec file
+ * 1) version
+ * 2) release
+ * 3) dependencies
+ * 4) summary
+ * 5) description
+ * 6) variables hash map
  * This class will parse the entry and contain those details
+ * this.resource = RPM name
  * 
  * @author gavrielk
  */
@@ -114,7 +119,14 @@ public class RpmResource extends IResource{
         String[] splitEntryArr = entry.split("\\s+");
         for (int i = 1; i < splitEntryArr.length; i++)
         {
-            value += splitEntryArr[i] + " ";
+            if (i == 1)
+            {
+                value += splitEntryArr[i];
+            }
+            else
+            {
+                value += " " + splitEntryArr[i];
+            }
         }
         return value;
     }

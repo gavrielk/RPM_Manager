@@ -8,11 +8,11 @@ package org.jenkinsci.plugins.rpm_manager.resources;
 
 /**
  * Description: 
- * Every file entry that RPM_Manager returns regarding a file consists of 3 part:
- * 1) permission
- * 2) source location
- * 3) dest location
+ * Every link entry that RPM_Manager returns regarding a link consists of 2 part:
+ * 1) source location
+ * 2) dest location
  * This class will parse the entry and contain those details
+ * this.resource = dest location
  * 
  * @author gavrielk
  */
